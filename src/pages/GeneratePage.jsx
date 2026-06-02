@@ -225,6 +225,16 @@ export default function GeneratePage() {
   const savedProject = (() => {
     try { return JSON.parse(sessionStorage.getItem("posta_project")); } catch { return null; }
   })();
+  // プランによる動画尺の制限
+  const USER_PLAN = "pro"; // TODO: 実際はログインユーザーのプランを参照
+  const PLAN_DURATION_LIMIT = {
+    starter: null,    // 動画生成不可
+    pro:     60,      // 最大60秒
+    business: 180,    // 最大3分
+  };
+  const durationLimit = PLAN_DURATION_LIMIT[USER_PLAN];
+  const DURATION_SECONDS = { short: 15, medium: 60, long: 180 };
+
   const PROJECT = savedProject || {
     id: 1, name: "カフェ Lumière", industry: "restaurant", color: "orange",
     tone: "warm", targets: ["f_30","family"], videoStyle: "vlog", bgm: "calm",
@@ -460,10 +470,10 @@ JSONのみ出力（前後の説明・バッククォート不要）：
                     </span>
                   </div>
                   <button onClick={generateNetaTips} disabled={netaTipsLoading} style={{
-                    fontSize: "10px", fontWeight: 700, padding: "4px 10px", borderRadius: "20px",
+                    fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "20px",
                     border: "1px solid #f97316", background: netaTipsLoading ? "#f3f4f6" : "#fff7ed",
                     color: netaTipsLoading ? "#9ca3af" : "#f97316", cursor: netaTipsLoading ? "default" : "pointer",
-                    display: "flex", alignItems: "center", gap: "4px",
+                    display: "flex", alignItems: "center", gap: "3px", whiteSpace: "nowrap", flexShrink: 0,
                   }}>
                     {netaTipsLoading
                       ? <><span style={{ animation: "spin 0.8s linear infinite", display: "inline-block" }}>⟳</span> 生成中</>
@@ -546,22 +556,32 @@ JSONのみ出力（前後の説明・バッククォート不要）：
               <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "10px" }}>⏱ 動画の長さ</div>
               <div style={{ display: "flex", gap: "8px" }}>
                 {[
-                  { id: "short",  label: "ショート",     sub: "〜15秒",   desc: "Shorts/Reels向け", icon: "⚡" },
-                  { id: "medium", label: "スタンダード",  sub: "30〜60秒", desc: "SNS標準",          icon: "▶" },
-                  { id: "long",   label: "ロング",        sub: "1〜3分",   desc: "解説・Vlog向け",  icon: "🎬" },
-                ].map(d => (
-                  <div key={d.id} onClick={() => setDuration(d.id)} style={{
-                    flex: 1, padding: "12px 8px", borderRadius: "12px", cursor: "pointer", textAlign: "center",
-                    border: `1.5px solid ${duration === d.id ? "#f97316" : "#e5e7eb"}`,
-                    background: duration === d.id ? "#fff7ed" : "#fff",
-                    transition: "all 0.15s",
+                  { id: "short",  label: "ショート",     sub: "〜15秒",   desc: "Shorts/Reels向け", icon: "⚡", seconds: 15 },
+                  { id: "medium", label: "スタンダード",  sub: "30〜60秒", desc: "SNS標準",          icon: "▶",  seconds: 60 },
+                  { id: "long",   label: "ロング",        sub: "1〜3分",   desc: "解説・Vlog向け",  icon: "🎬", seconds: 180 },
+                ].map(d => {
+                  const locked = durationLimit === null || DURATION_SECONDS[d.id] > durationLimit;
+                  return (
+                  <div key={d.id} onClick={() => !locked && setDuration(d.id)} style={{
+                    flex: 1, padding: "12px 8px", borderRadius: "12px",
+                    cursor: locked ? "default" : "pointer", textAlign: "center",
+                    border: `1.5px solid ${locked ? "#e5e7eb" : duration === d.id ? "#f97316" : "#e5e7eb"}`,
+                    background: locked ? "#f9fafb" : duration === d.id ? "#fff7ed" : "#fff",
+                    opacity: locked ? 0.5 : 1,
+                    transition: "all 0.15s", position: "relative",
                   }}>
+                    {locked && (
+                      <div style={{ position: "absolute", top: "4px", right: "4px", fontSize: "9px", fontWeight: 700, background: "#f3f4f6", color: "#9ca3af", padding: "1px 5px", borderRadius: "8px" }}>
+                        🔒
+                      </div>
+                    )}
                     <div style={{ fontSize: "18px", marginBottom: "3px" }}>{d.icon}</div>
-                    <div style={{ fontSize: "11px", fontWeight: 800, color: duration === d.id ? "#f97316" : "#111827" }}>{d.label}</div>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: duration === d.id ? "#f97316" : "#374151", marginTop: "1px" }}>{d.sub}</div>
-                    <div style={{ fontSize: "9px", color: "#9ca3af", marginTop: "2px" }}>{d.desc}</div>
+                    <div style={{ fontSize: "11px", fontWeight: 800, color: locked ? "#9ca3af" : duration === d.id ? "#f97316" : "#111827" }}>{d.label}</div>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: locked ? "#9ca3af" : duration === d.id ? "#f97316" : "#374151", marginTop: "1px" }}>{d.sub}</div>
+                    <div style={{ fontSize: "9px", color: "#9ca3af", marginTop: "2px" }}>{locked ? "プランUPで利用可" : d.desc}</div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
