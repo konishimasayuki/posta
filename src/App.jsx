@@ -1,9 +1,11 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import LoginPage       from "./pages/LoginPage.jsx";
-import ProjectListPage from "./pages/ProjectListPage.jsx";
-import GeneratePage    from "./pages/GeneratePage.jsx";
-import ResultPage      from "./pages/ResultPage.jsx";
-import HistoryPage     from "./pages/HistoryPage.jsx";
+import LoginPage        from "./pages/LoginPage.jsx";
+import ProjectListPage  from "./pages/ProjectListPage.jsx";
+import GeneratePage     from "./pages/GeneratePage.jsx";
+import ResultPage       from "./pages/ResultPage.jsx";
+import HistoryPage      from "./pages/HistoryPage.jsx";
+import MyPage           from "./pages/MyPage.jsx";
+import AdminPage        from "./pages/AdminPage.jsx";
 
 export default function App() {
   return (
@@ -14,6 +16,8 @@ export default function App() {
       <Route path="/generate"  element={<GeneratePage />} />
       <Route path="/result"    element={<ResultPage />} />
       <Route path="/history"   element={<HistoryPage />} />
+      <Route path="/mypage"    element={<MyPage />} />
+      <Route path="/admin"     element={<AdminPage />} />
     </Routes>
   );
 }
