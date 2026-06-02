@@ -18,13 +18,20 @@ export default function BottomNav() {
   const location = useLocation();
   const path = location.pathname;
 
-  const isHistory = path === "/history";
-  const isMypage  = path === "/mypage";
-
   const handleNavigate = (to) => {
     window.scrollTo(0, 0);
     navigate(to);
   };
+
+  const isActive = (p) => path === p;
+
+  const Tab = ({ to, icon, label }) => (
+    <div onClick={() => handleNavigate(to)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", padding: "10px 0 6px", cursor: "pointer" }}>
+      <span style={{ fontSize: "22px" }}>{icon}</span>
+      <span style={{ fontSize: "10px", fontWeight: isActive(to) ? 700 : 400, color: isActive(to) ? "#f97316" : "#9ca3af" }}>{label}</span>
+      {isActive(to) && <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#f97316" }} />}
+    </div>
+  );
 
   return (
     <div style={{
@@ -37,12 +44,7 @@ export default function BottomNav() {
     }}>
       <div style={{ maxWidth: "520px", margin: "0 auto", display: "flex", alignItems: "center", paddingBottom: "6px" }}>
 
-        {/* 履歴 */}
-        <div onClick={() => handleNavigate("/history")} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", padding: "10px 0 6px", cursor: "pointer" }}>
-          <span style={{ fontSize: "22px" }}>🕐</span>
-          <span style={{ fontSize: "10px", fontWeight: isHistory ? 700 : 400, color: isHistory ? "#f97316" : "#9ca3af" }}>履歴</span>
-          {isHistory && <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#f97316" }} />}
-        </div>
+        <Tab to="/history" icon="🕐" label="履歴" />
 
         {/* 中央：ホーム */}
         <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
@@ -62,12 +64,7 @@ export default function BottomNav() {
           </div>
         </div>
 
-        {/* マイページ */}
-        <div onClick={() => handleNavigate("/mypage")} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", padding: "10px 0 6px", cursor: "pointer" }}>
-          <span style={{ fontSize: "22px" }}>👤</span>
-          <span style={{ fontSize: "10px", fontWeight: isMypage ? 700 : 400, color: isMypage ? "#f97316" : "#9ca3af" }}>マイページ</span>
-          {isMypage && <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#f97316" }} />}
-        </div>
+        <Tab to="/mypage" icon="👤" label="マイページ" />
 
       </div>
     </div>
