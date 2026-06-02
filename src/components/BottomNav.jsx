@@ -26,7 +26,10 @@ export default function BottomNav() {
   const isActive = (p) => path === p;
 
   const Tab = ({ to, icon, label }) => (
-    <div onClick={() => handleNavigate(to)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", padding: "10px 0 6px", cursor: "pointer" }}>
+    <div onClick={() => handleNavigate(to)} style={{
+      display: "flex", flexDirection: "column", alignItems: "center",
+      gap: "3px", padding: "10px 20px 6px", cursor: "pointer",
+    }}>
       <span style={{ fontSize: "22px" }}>{icon}</span>
       <span style={{ fontSize: "10px", fontWeight: isActive(to) ? 700 : 400, color: isActive(to) ? "#f97316" : "#9ca3af" }}>{label}</span>
       {isActive(to) && <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#f97316" }} />}
@@ -42,17 +45,30 @@ export default function BottomNav() {
       WebkitBackdropFilter: "blur(10px)",
       paddingBottom: "env(safe-area-inset-bottom, 0px)",
     }}>
-      <div style={{ maxWidth: "520px", margin: "0 auto", display: "flex", alignItems: "center", paddingBottom: "6px" }}>
+      <div style={{
+        maxWidth: "520px", margin: "0 auto",
+        display: "flex", alignItems: "center",
+        paddingBottom: "6px", position: "relative",
+        height: "60px",
+      }}>
+        {/* 左2つ */}
+        <div style={{ display: "flex", marginRight: "auto" }}>
+          <Tab to="/history" icon="🕐" label="履歴" />
+          <Tab to="/explore" icon="🔍" label="探索" />
+        </div>
 
-        <Tab to="/history" icon="🕐" label="履歴" />
-
-        {/* 中央：ホーム */}
-        <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+        {/* Pボタン：絶対配置でど真ん中 */}
+        <div style={{
+          position: "absolute",
+          left: "50%",
+          transform: "translateX(-50%)",
+          top: "-20px",
+        }}>
           <div onClick={() => handleNavigate("/projects")} style={{
             width: "62px", height: "62px", borderRadius: "50%",
             background: "linear-gradient(135deg, #f97316, #ec4899)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            marginTop: "-26px", cursor: "pointer",
+            cursor: "pointer",
             boxShadow: "0 6px 24px rgba(249,115,22,0.4)",
             border: "3px solid #fff",
             transition: "transform 0.15s",
@@ -64,9 +80,10 @@ export default function BottomNav() {
           </div>
         </div>
 
-        <Tab to="/explore" icon="🔍" label="探索" />
-        <Tab to="/mypage"  icon="👤" label="マイページ" />
-
+        {/* 右1つ */}
+        <div style={{ display: "flex", marginLeft: "auto" }}>
+          <Tab to="/mypage" icon="👤" label="マイページ" />
+        </div>
       </div>
     </div>
   );
