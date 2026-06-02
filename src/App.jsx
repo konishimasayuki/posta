@@ -6,6 +6,7 @@ import ResultPage       from "./pages/ResultPage.jsx";
 import HistoryPage      from "./pages/HistoryPage.jsx";
 import MyPage           from "./pages/MyPage.jsx";
 import AdminPage        from "./pages/AdminPage.jsx";
+import ExplorePage      from "./pages/ExplorePage.jsx";
 import BottomNav        from "./components/BottomNav.jsx";
 
 function Layout() {
@@ -23,6 +24,7 @@ function Layout() {
         <Route path="/history"  element={<HistoryPage />} />
         <Route path="/mypage"   element={<MyPage />} />
         <Route path="/admin"    element={<AdminPage />} />
+        <Route path="/explore"  element={<ExplorePage />} />
       </Routes>
       {!hideNav && <BottomNav />}
     </>
