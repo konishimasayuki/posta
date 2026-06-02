@@ -15,12 +15,10 @@ const WORKS = [
 const CATEGORIES = ["すべて", "カフェ", "フィットネス", "美容", "旅行", "料理", "EC"];
 
 function WorkCard({ work, onLike, onUseTemplate }) {
-  const [showPrompt, setShowPrompt] = useState(false);
-
   return (
     <div style={{ background: "#fff", borderRadius: "16px", border: "1.5px solid #e5e7eb", overflow: "hidden", boxShadow: "0 1px 4px #0000000a" }}>
       {/* サムネイル */}
-      <div style={{ position: "relative", aspectRatio: "9/16", maxHeight: "200px", background: `linear-gradient(135deg, ${work.thumb}cc, ${work.thumb}66)`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+      <div style={{ position: "relative", height: "180px", background: `linear-gradient(135deg, ${work.thumb}cc, ${work.thumb}66)`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
         <div style={{ fontSize: "48px", opacity: 0.6 }}>{work.avatar}</div>
         {/* 再生アイコン */}
         <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "36px", height: "36px", borderRadius: "50%", background: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -31,6 +29,11 @@ function WorkCard({ work, onLike, onUseTemplate }) {
           <span style={{ fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "10px", background: work.accent, color: "#fff" }}>{work.platform}</span>
           <span style={{ fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "10px", background: "rgba(0,0,0,0.6)", color: "#fff" }}>{work.duration}</span>
         </div>
+        {/* ユーザー名 */}
+        <div style={{ position: "absolute", bottom: "8px", right: "8px", display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.55)", borderRadius: "20px", padding: "3px 8px 3px 4px" }}>
+          <div style={{ width: "16px", height: "16px", borderRadius: "50%", background: work.thumb, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px" }}>{work.avatar}</div>
+          <span style={{ fontSize: "9px", fontWeight: 700, color: "#fff" }}>{work.user}</span>
+        </div>
         {/* プラン */}
         <div style={{ position: "absolute", top: "8px", right: "8px" }}>
           <span style={{ fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "10px", background: work.plan === "Business" ? "#7c3aed" : work.plan === "Pro" ? "#f97316" : "#6b7280", color: "#fff" }}>{work.plan}</span>
@@ -38,11 +41,6 @@ function WorkCard({ work, onLike, onUseTemplate }) {
       </div>
 
       <div style={{ padding: "12px" }}>
-        {/* ユーザー */}
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-          <div style={{ width: "22px", height: "22px", borderRadius: "50%", background: work.thumb + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px" }}>{work.avatar}</div>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "#374151" }}>{work.user}</span>
-        </div>
 
         {/* タイトル */}
         <div style={{ fontSize: "13px", fontWeight: 800, color: "#111827", marginBottom: "8px" }}>{work.title}</div>
@@ -52,18 +50,6 @@ function WorkCard({ work, onLike, onUseTemplate }) {
           {work.tags.map(tag => (
             <span key={tag} style={{ fontSize: "9px", fontWeight: 600, padding: "2px 7px", borderRadius: "20px", background: "#f3f4f6", color: "#6b7280" }}>#{tag}</span>
           ))}
-        </div>
-
-        {/* プロンプト折りたたみ */}
-        <div style={{ marginBottom: "10px" }}>
-          <button onClick={() => setShowPrompt(p => !p)} style={{ fontSize: "11px", fontWeight: 700, color: "#7c3aed", background: "#f5f3ff", border: "none", borderRadius: "8px", padding: "5px 10px", cursor: "pointer", width: "100%", textAlign: "left" }}>
-            {showPrompt ? "▲ プロンプトを閉じる" : "▼ プロンプトを見る"}
-          </button>
-          {showPrompt && (
-            <div style={{ marginTop: "6px", background: "#f8f9fb", borderRadius: "8px", padding: "10px", fontSize: "10px", color: "#374151", fontFamily: "monospace", lineHeight: 1.7, border: "1px solid #e5e7eb" }}>
-              {work.prompt}
-            </div>
-          )}
         </div>
 
         {/* アクション */}
