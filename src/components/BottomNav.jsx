@@ -64,7 +64,8 @@ export default function BottomNav() {
           </div>
         </div>
 
-        <Tab to="/mypage" icon="👤" label="マイページ" />
+        <Tab to="/explore" icon="🔍" label="探索" />
+        <Tab to="/mypage"  icon="👤" label="マイページ" />
 
       </div>
     </div>
