@@ -912,10 +912,9 @@ export default function ProjectListPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8f9fb", fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif", color: "#111827" }}>
       <Toast msg={toast} />
-      {screen === "list"    && <ProjectList projects={projects} onSelect={p => { setActiveProject(p); setScreen("menu"); }} onNew={() => setModal("new")} onEdit={p => setModal(p)} />}
-      {screen === "menu"    && activeProject && <GenerateMenu project={activeProject} onSNS={() => setScreen("sns")} onVideo={() => setScreen("video")} onBack={() => setScreen("list")} />}
-      {screen === "sns"     && activeProject && <SNSGenerate project={activeProject} onResult={r => { setResult(r); setScreen("result"); }} onBack={() => setScreen("menu")} />}
-      {screen === "video"   && activeProject && <VideoGenerate project={activeProject} onResult={r => { setResult(r); setScreen("result"); }} onBack={() => setScreen("menu")} />}
+      {screen === "list"    && <ProjectList projects={projects} onSelect={p => { setActiveProject(p); setScreen("sns"); }} onNew={() => setModal("new")} onEdit={p => setModal(p)} />}
+      {screen === "sns"     && activeProject && <SNSGenerate project={activeProject} onResult={r => { setResult(r); setScreen("result"); }} onBack={() => setScreen("list")} />}
+      {screen === "video"   && activeProject && <VideoGenerate project={activeProject} onResult={r => { setResult(r); setScreen("result"); }} onBack={() => setScreen("list")} />}
       {screen === "result"  && result && <SNSResult result={result} onBack={() => setScreen("sns")} onNew={() => { setResult(null); setScreen("sns"); }} />}
       {modal && <BrandModal project={modal === "new" ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
 
