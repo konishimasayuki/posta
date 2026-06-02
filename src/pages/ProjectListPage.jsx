@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ─── 定数 ─────────────────────────────────────────────
 const INDUSTRIES = [
@@ -886,20 +887,21 @@ function SNSResult({ result, onBack, onNew }) {
 
 // ─── ルート ───────────────────────────────────────────
 export default function ProjectListPage() {
-  const [screen, setScreen] = useState("list");
+  const navigate = useNavigate();
   const [projects, setProjects] = useState(SAMPLE_PROJECTS);
-  const [activeProject, setActiveProject] = useState(null);
-  const [result, setResult] = useState(null);
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState(null);
 
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2500); };
-  const accentColor = activeProject ? gc(activeProject.color)?.primary || "#f97316" : "#f97316";
+
+  const handleSelect = (project) => {
+    sessionStorage.setItem("posta_project", JSON.stringify(project));
+    navigate("/generate");
+  };
 
   const handleSave = (data) => {
     if (data.id) {
       setProjects(ps => ps.map(p => p.id === data.id ? { ...p, ...data, lastEdit: "今" } : p));
-      if (activeProject?.id === data.id) setActiveProject({ ...activeProject, ...data });
       showToast("ブランド設定を更新しました");
     } else {
       const newP = { ...data, id: Date.now(), posts: 0, lastEdit: "今" };
@@ -912,10 +914,7 @@ export default function ProjectListPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8f9fb", fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif", color: "#111827" }}>
       <Toast msg={toast} />
-      {screen === "list"    && <ProjectList projects={projects} onSelect={p => { setActiveProject(p); setScreen("sns"); }} onNew={() => setModal("new")} onEdit={p => setModal(p)} />}
-      {screen === "sns"     && activeProject && <SNSGenerate project={activeProject} onResult={r => { setResult(r); setScreen("result"); }} onBack={() => setScreen("list")} />}
-      {screen === "video"   && activeProject && <VideoGenerate project={activeProject} onResult={r => { setResult(r); setScreen("result"); }} onBack={() => setScreen("list")} />}
-      {screen === "result"  && result && <SNSResult result={result} onBack={() => setScreen("sns")} onNew={() => { setResult(null); setScreen("sns"); }} />}
+      <ProjectList projects={projects} onSelect={handleSelect} onNew={() => setModal("new")} onEdit={p => setModal(p)} />
       {modal && <BrandModal project={modal === "new" ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
 
       <style>{`
