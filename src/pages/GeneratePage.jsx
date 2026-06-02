@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 
 const PLATFORMS = [
   { id: "tiktok",    label: "TikTok",    icon: "🎵", accent: "#fe2c55", bg: "#fff0f3" },
@@ -213,6 +214,19 @@ function LoadingScreen({ steps, currentStep }) {
 
 // ─── メイン ───────────────────────────────────────────
 export default function GeneratePage() {
+  const navigate = useNavigate();
+  // sessionStorageからプロジェクトを取得
+  const savedProject = (() => {
+    try { return JSON.parse(sessionStorage.getItem("posta_project")); } catch { return null; }
+  })();
+  const PROJECT = savedProject || {
+    id: 1, name: "カフェ Lumière", industry: "restaurant", color: "orange",
+    tone: "warm", targets: ["f_30","family"], videoStyle: "vlog", bgm: "calm",
+    font: "round", keigo: "desu", purpose: "attract",
+    purposeDetail: "近隣の30〜40代女性・ファミリー層に来店してもらう。",
+    fixedWords: "Lumière、週末モーニング",
+  };
+
   const [selected, setSelected] = useState(["tiktok", "instagram"]);
   const [phase, setPhase] = useState("input");   // input | loading | result
   const [loadStep, setLoadStep] = useState(0);
@@ -365,7 +379,7 @@ JSONのみ出力（前後の説明・バッククォート不要）：
       <div style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "0 20px", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: "520px", margin: "0 auto", padding: "14px 0", display: "flex", alignItems: "center", gap: "10px" }}>
           {phase === "result" && (
-            <button onClick={() => setPhase("input")} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#6b7280" }}>←</button>
+            <button onClick={() => navigate("/projects")} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#6b7280" }}>←</button>
           )}
           <div style={{ fontSize: "20px", fontWeight: 900, letterSpacing: "-0.03em" }}>
             <span style={{ color: "#f97316" }}>Po</span>sta
