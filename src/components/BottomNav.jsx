@@ -21,16 +21,24 @@ export default function BottomNav() {
   const isHistory = path === "/history";
   const isMypage  = path === "/mypage";
 
+  const handleNavigate = (to) => {
+    window.scrollTo(0, 0);
+    navigate(to);
+  };
+
   return (
     <div style={{
       position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100,
-      background: "#fff", borderTop: "1px solid #e5e7eb",
+      background: "rgba(255, 247, 237, 0.92)",
+      borderTop: "1px solid #fed7aa",
+      backdropFilter: "blur(10px)",
+      WebkitBackdropFilter: "blur(10px)",
       paddingBottom: "env(safe-area-inset-bottom, 0px)",
     }}>
       <div style={{ maxWidth: "520px", margin: "0 auto", display: "flex", alignItems: "center", paddingBottom: "6px" }}>
 
         {/* 履歴 */}
-        <div onClick={() => navigate("/history")} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", padding: "10px 0 6px", cursor: "pointer" }}>
+        <div onClick={() => handleNavigate("/history")} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", padding: "10px 0 6px", cursor: "pointer" }}>
           <span style={{ fontSize: "22px" }}>🕐</span>
           <span style={{ fontSize: "10px", fontWeight: isHistory ? 700 : 400, color: isHistory ? "#f97316" : "#9ca3af" }}>履歴</span>
           {isHistory && <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#f97316" }} />}
@@ -38,7 +46,7 @@ export default function BottomNav() {
 
         {/* 中央：ホーム */}
         <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-          <div onClick={() => navigate("/projects")} style={{
+          <div onClick={() => handleNavigate("/projects")} style={{
             width: "62px", height: "62px", borderRadius: "50%",
             background: "linear-gradient(135deg, #f97316, #ec4899)",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -55,7 +63,7 @@ export default function BottomNav() {
         </div>
 
         {/* マイページ */}
-        <div onClick={() => navigate("/mypage")} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", padding: "10px 0 6px", cursor: "pointer" }}>
+        <div onClick={() => handleNavigate("/mypage")} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", padding: "10px 0 6px", cursor: "pointer" }}>
           <span style={{ fontSize: "22px" }}>👤</span>
           <span style={{ fontSize: "10px", fontWeight: isMypage ? 700 : 400, color: isMypage ? "#f97316" : "#9ca3af" }}>マイページ</span>
           {isMypage && <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#f97316" }} />}
