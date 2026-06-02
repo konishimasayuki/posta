@@ -121,8 +121,8 @@ const gk = id => KEIGO.find(k => k.id === id);
 // ─── 小コンポーネント ─────────────────────────────────
 function Header({ title, onBack, accentColor, rightEl }) {
   return (
-    <div style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "0 20px", position: "sticky", top: 0, zIndex: 100 }}>
-      <div style={{ maxWidth: "480px", margin: "0 auto", padding: "14px 0", display: "flex", alignItems: "center", gap: "10px" }}>
+    <div style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "0 16px", position: "sticky", top: 0, zIndex: 100 }}>
+      <div style={{ width: "100%", padding: "14px 0", display: "flex", alignItems: "center", gap: "10px" }}>
         {onBack && <button onClick={onBack} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#6b7280", padding: "0 4px 0 0" }}>←</button>}
         <div style={{ fontSize: "20px", fontWeight: 900, letterSpacing: "-0.03em" }}>
           <span style={{ color: accentColor || "#f97316" }}>Po</span>sta
@@ -174,7 +174,7 @@ function BrandModal({ project, onSave, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end" }} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width: "100%", maxWidth: "480px", margin: "0 auto", background: "#fff", borderRadius: "24px 24px 0 0", maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "16px 20px 0", flexShrink: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <div style={{ fontSize: "16px", fontWeight: 900 }}>{project?.id ? "ブランド設定を編集" : "新規プロジェクト作成"}</div>
@@ -354,7 +354,7 @@ function ProjectList({ projects, onSelect, onNew, onEdit }) {
     <>
       <Header title="プロジェクト一覧" accentColor="#f97316"
         rightEl={<button onClick={onNew} style={{ padding: "8px 14px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: "12px", cursor: "pointer", boxShadow: "0 2px 10px #f9731633" }}>＋ 新規作成</button>} />
-      <div style={{ maxWidth: "480px", margin: "0 auto", padding: "20px 16px 60px" }}>
+      <div style={{ width: "100%", padding: "20px 16px 60px" }}>
         {/* ヒーロー */}
         <div style={{ background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)", borderRadius: "20px", padding: "20px 22px", marginBottom: "20px", color: "#fff", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", right: "-15px", top: "-15px", width: "100px", height: "100px", borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
