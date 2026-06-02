@@ -215,6 +215,12 @@ function LoadingScreen({ steps, currentStep }) {
 // ─── メイン ───────────────────────────────────────────
 export default function GeneratePage() {
   const navigate = useNavigate();
+
+  // 画面遷移時に先頭にスクロール
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // sessionStorageからプロジェクトを取得
   const savedProject = (() => {
     try { return JSON.parse(sessionStorage.getItem("posta_project")); } catch { return null; }
