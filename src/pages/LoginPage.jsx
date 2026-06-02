@@ -1,6 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
+function AutoRedirect({ navigate }) {
+  useEffect(() => {
+    const timer = setTimeout(() => navigate("/projects"), 1500);
+    return () => clearTimeout(timer);
+  }, [navigate]);
+  return null;
+}
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState("login"); // login | signup | forgot
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -83,6 +93,7 @@ export default function LoginPage() {
             <div style={{ marginTop: "16px", padding: "12px", background: "#fff7ed", borderRadius: "10px", border: "1px solid #fed7aa", fontSize: "12px", color: "#c2410c", fontWeight: 600 }}>
               → プロジェクト一覧へリダイレクト中...
             </div>
+            <AutoRedirect navigate={navigate} />
           </div>
         ) : (
           <>
