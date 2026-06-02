@@ -29,11 +29,7 @@ function WorkCard({ work, onLike, onUseTemplate }) {
           <span style={{ fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "10px", background: work.accent, color: "#fff" }}>{work.platform}</span>
           <span style={{ fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "10px", background: "rgba(0,0,0,0.6)", color: "#fff" }}>{work.duration}</span>
         </div>
-        {/* ユーザー名 */}
-        <div style={{ position: "absolute", bottom: "8px", right: "8px", display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.55)", borderRadius: "20px", padding: "3px 8px 3px 4px" }}>
-          <div style={{ width: "16px", height: "16px", borderRadius: "50%", background: work.thumb, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px" }}>{work.avatar}</div>
-          <span style={{ fontSize: "9px", fontWeight: 700, color: "#fff" }}>{work.user}</span>
-        </div>
+
         {/* プラン */}
         <div style={{ position: "absolute", top: "8px", right: "8px" }}>
           <span style={{ fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "10px", background: work.plan === "Business" ? "#7c3aed" : work.plan === "Pro" ? "#f97316" : "#6b7280", color: "#fff" }}>{work.plan}</span>
@@ -41,6 +37,10 @@ function WorkCard({ work, onLike, onUseTemplate }) {
       </div>
 
       <div style={{ padding: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+          <div style={{ width: "22px", height: "22px", borderRadius: "50%", background: work.thumb + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px" }}>{work.avatar}</div>
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "#374151" }}>{work.user}</span>
+        </div>
 
         {/* タイトル */}
         <div style={{ fontSize: "13px", fontWeight: 800, color: "#111827", marginBottom: "8px" }}>{work.title}</div>
