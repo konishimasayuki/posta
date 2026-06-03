@@ -1,6 +1,29 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+function Field({ label, type = "text", value, onChange, placeholder }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div style={{ marginBottom: "14px" }}>
+      <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "5px" }}>{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          width: "100%", padding: "12px 14px", borderRadius: "10px", fontSize: "14px",
+          border: `1.5px solid ${focused ? "#f97316" : "#e5e7eb"}`,
+          outline: "none", fontFamily: "inherit", color: "#111827",
+          boxShadow: focused ? "0 0 0 3px #f9731618" : "none", transition: "all 0.2s",
+        }}
+      />
+    </div>
+  );
+}
+
 function AutoRedirect({ navigate }) {
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -14,7 +37,7 @@ function AutoRedirect({ navigate }) {
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState("login"); // login | signup | forgot
+  const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -24,16 +47,13 @@ export default function LoginPage() {
   const DEMO_ACCOUNTS = [
     { id: "posta", password: "0383", role: "demo", plan: "pro", name: "デモユーザー" },
   ];
-
   const ADMIN_ACCOUNTS = [
     { id: "admin", password: "admin0383", role: "admin", name: "管理者" },
   ];
 
   const handleSubmit = () => {
     setLoading(true);
-
     setTimeout(() => {
-      // デモアカウント確認
       const demoMatch = DEMO_ACCOUNTS.find(a => a.id === email && a.password === password);
       const adminMatch = ADMIN_ACCOUNTS.find(a => a.id === email && a.password === password);
 
@@ -44,7 +64,6 @@ export default function LoginPage() {
         navigate("/projects");
         return;
       }
-
       if (adminMatch) {
         sessionStorage.setItem("posta_user", JSON.stringify({ role: "admin", plan: "business", name: adminMatch.name }));
         setLoading(false);
@@ -52,28 +71,9 @@ export default function LoginPage() {
         navigate("/admin");
         return;
       }
-
-      // 通常ログイン（デモ）
       setLoading(false);
       setDone(true);
     }, 1000);
-  };
-
-  const Field = ({ label, type = "text", value, onChange, placeholder }) => {
-    const [focused, setFocused] = useState(false);
-    return (
-      <div style={{ marginBottom: "14px" }}>
-        <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "5px" }}>{label}</label>
-        <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-          style={{
-            width: "100%", padding: "12px 14px", borderRadius: "10px", fontSize: "14px",
-            border: `1.5px solid ${focused ? "#f97316" : "#e5e7eb"}`,
-            outline: "none", fontFamily: "inherit", color: "#111827",
-            boxShadow: focused ? "0 0 0 3px #f9731618" : "none", transition: "all 0.2s",
-          }} />
-      </div>
-    );
   };
 
   return (
@@ -105,7 +105,6 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* forgot */}
         {mode === "forgot" && (
           <div style={{ marginBottom: "20px" }}>
             <button onClick={() => setMode("login")} style={{ background: "none", border: "none", color: "#9ca3af", fontSize: "13px", cursor: "pointer", padding: 0, marginBottom: "12px" }}>← ログインに戻る</button>
@@ -118,7 +117,7 @@ export default function LoginPage() {
           <div style={{ textAlign: "center", padding: "20px 0" }}>
             <div style={{ fontSize: "40px", marginBottom: "12px" }}>📬</div>
             <div style={{ fontSize: "15px", fontWeight: 800, marginBottom: "6px" }}>メールを送信しました</div>
-            <div style={{ fontSize: "12px", color: "#9ca3af", lineHeight: 1.7 }}>{email} にリセットリンクを送りました。メールをご確認ください。</div>
+            <div style={{ fontSize: "12px", color: "#9ca3af", lineHeight: 1.7 }}>{email} にリセットリンクを送りました。</div>
             <button onClick={() => { setMode("login"); setDone(false); }} style={{ marginTop: "16px", fontSize: "13px", color: "#f97316", background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>ログインへ →</button>
           </div>
         ) : done ? (
@@ -134,8 +133,8 @@ export default function LoginPage() {
         ) : (
           <>
             {mode === "signup" && <Field label="お名前" value={name} onChange={setName} placeholder="山田 太郎" />}
-            <Field label="メールアドレス" type="email" value={email} onChange={setEmail} placeholder="例：posta / メールアドレス" />
-            {mode !== "forgot" && <Field label="パスワード" type="password" value={password} onChange={setPassword} placeholder="8文字以上" />}
+            <Field label="ID / メールアドレス" type="text" value={email} onChange={setEmail} placeholder="例：posta / メールアドレス" />
+            {mode !== "forgot" && <Field label="パスワード" type="password" value={password} onChange={setPassword} placeholder="パスワードを入力" />}
 
             {mode === "login" && (
               <div style={{ textAlign: "right", marginTop: "-8px", marginBottom: "16px" }}>
@@ -145,22 +144,25 @@ export default function LoginPage() {
               </div>
             )}
 
-            <button onClick={handleSubmit} disabled={loading || !email || (mode !== "forgot" && !password)} style={{
-              width: "100%", padding: "14px", borderRadius: "12px", border: "none",
-              background: (!email || (mode !== "forgot" && !password)) ? "#e5e7eb" : "linear-gradient(135deg, #f97316, #ea580c)",
-              color: (!email || (mode !== "forgot" && !password)) ? "#9ca3af" : "#fff",
-              fontWeight: 800, fontSize: "14px", cursor: "pointer",
-              boxShadow: email ? "0 4px 16px #f9731633" : "none",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-              transition: "all 0.2s",
-            }}>
+            <button
+              onClick={handleSubmit}
+              disabled={loading || !email || (mode !== "forgot" && !password)}
+              style={{
+                width: "100%", padding: "14px", borderRadius: "12px", border: "none",
+                background: (!email || (mode !== "forgot" && !password)) ? "#e5e7eb" : "linear-gradient(135deg, #f97316, #ea580c)",
+                color: (!email || (mode !== "forgot" && !password)) ? "#9ca3af" : "#fff",
+                fontWeight: 800, fontSize: "14px", cursor: "pointer",
+                boxShadow: email ? "0 4px 16px #f9731633" : "none",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                transition: "all 0.2s",
+              }}
+            >
               {loading
                 ? <><span style={{ animation: "spin 0.8s linear infinite", display: "inline-block" }}>⟳</span> 処理中...</>
                 : mode === "login" ? "ログイン →" : mode === "signup" ? "アカウントを作成 →" : "リセットリンクを送る"
               }
             </button>
 
-            {/* Google / Apple */}
             {mode !== "forgot" && (
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "18px 0" }}>
@@ -185,7 +187,6 @@ export default function LoginPage() {
         )}
       </div>
 
-      {/* フッター */}
       <div style={{ marginTop: "20px", fontSize: "11px", color: "#9ca3af", textAlign: "center", lineHeight: 1.8 }}>
         ログインすることで<span style={{ color: "#374151", cursor: "pointer" }}>利用規約</span>・<span style={{ color: "#374151", cursor: "pointer" }}>プライバシーポリシー</span>に同意したものとみなします
       </div>
