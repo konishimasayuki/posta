@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const PLAN_META = {
-  starter:  { label: "Starter",  color: "#6b7280", bg: "#f9fafb", videoLimit: 0,   duration: null },
+  free:     { label: "Free",     color: "#059669", bg: "#ecfdf5", videoLimit: 3,   duration: 15 },
+  starter:  { label: "Starter",  color: "#6b7280", bg: "#f9fafb", videoLimit: 10,  duration: 15 },
   pro:      { label: "Pro",      color: "#f97316", bg: "#fff7ed", videoLimit: 20,  duration: 60 },
   business: { label: "Business", color: "#7c3aed", bg: "#f5f3ff", videoLimit: 100, duration: 180 },
 };
 
-const USERS = [
+const INITIAL_USERS = [
   { id: 1, name: "山田 太郎",   email: "taro@example.com",    plan: "pro",      videoUsage: 8,  postUsage: 47, projects: 3, joinedAt: "2026/04/01", lastActive: "今日",  status: "active" },
   { id: 2, name: "鈴木 花子",   email: "hanako@example.com",  plan: "starter",  videoUsage: 0,  postUsage: 12, projects: 1, joinedAt: "2026/04/15", lastActive: "昨日",  status: "active" },
   { id: 3, name: "田中 商事",   email: "tanaka@corp.com",     plan: "business", videoUsage: 43, postUsage: 188,projects: 8, joinedAt: "2026/03/01", lastActive: "2時間前",status: "active" },
@@ -56,21 +57,44 @@ function UsageBar({ usage, limit, color }) {
 
 export default function AdminPage() {
   const navigate = useNavigate();
+  const [users, setUsers] = useState(INITIAL_USERS);
   const [tab, setTab] = useState("users");
   const [selectedUser, setSelectedUser] = useState(null);
   const [editPlan, setEditPlan] = useState(null);
   const [toast, setToast] = useState(null);
   const [filterPlan, setFilterPlan] = useState("all");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newUser, setNewUser] = useState({ name: "", email: "", plan: "free" });
+
+  const handleAddUser = () => {
+    if (!newUser.name || !newUser.email) return;
+    const user = {
+      id: Date.now(),
+      name: newUser.name,
+      email: newUser.email,
+      plan: newUser.plan,
+      videoUsage: 0,
+      postUsage: 0,
+      projects: 0,
+      joinedAt: new Date().toLocaleDateString("ja-JP"),
+      lastActive: "今",
+      status: "active",
+    };
+    setUsers(prev => [...prev, user]);
+    setNewUser({ name: "", email: "", plan: "free" });
+    setShowAddModal(false);
+    showToast(`${user.name} を追加しました`);
+  };
 
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2500); };
 
-  const filteredUsers = filterPlan === "all" ? USERS : USERS.filter(u => u.plan === filterPlan);
+  const filteredUsers = filterPlan === "all" ? users : users.filter(u => u.plan === filterPlan);
 
   const totalStats = {
-    users: USERS.length,
-    active: USERS.filter(u => u.status === "active").length,
-    videos: USERS.reduce((s, u) => s + u.videoUsage, 0),
-    posts:  USERS.reduce((s, u) => s + u.postUsage, 0),
+    users: users.length,
+    active: users.filter(u => u.status === "active").length,
+    videos: users.reduce((s, u) => s + u.videoUsage, 0),
+    posts:  users.reduce((s, u) => s + u.postUsage, 0),
   };
 
   const handlePlanSave = (userId, newPlan) => {
@@ -136,6 +160,17 @@ export default function AdminPage() {
         {/* ユーザー管理タブ */}
         {tab === "users" && (
           <div>
+            {/* ユーザー追加ボタン */}
+            <button onClick={() => setShowAddModal(true)} style={{
+              width: "100%", padding: "12px", borderRadius: "12px", border: "none", marginBottom: "12px",
+              background: "linear-gradient(135deg, #f97316, #ea580c)",
+              color: "#fff", fontWeight: 800, fontSize: "14px", cursor: "pointer",
+              boxShadow: "0 4px 14px #f9731633",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+            }}>
+              ＋ ユーザーを追加する
+            </button>
+
             {/* フィルター */}
             <div style={{ display: "flex", gap: "6px", marginBottom: "12px", overflowX: "auto", scrollbarWidth: "none" }}>
               {[["all","すべて"],["starter","Starter"],["pro","Pro"],["business","Business"]].map(([v, l]) => (
