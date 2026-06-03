@@ -61,6 +61,15 @@ const FONTS = [
   { id: "handwrite",label: "手書き風",   desc: "温かみ・親近感" },
   { id: "mono",     label: "等幅体",     desc: "テック・クール・無機質" },
 ];
+const VIDEO_TYPES = [
+  { id: "realpeople",  icon: "🎥", label: "実写・人物あり",     desc: "自撮り・スタッフ・お客様" },
+  { id: "realnoperson",icon: "🏠", label: "実写・人物なし",     desc: "商品・空間・料理・景色" },
+  { id: "anime2d",     icon: "🌸", label: "アニメ（日本風）",   desc: "2Dアニメ・セル調" },
+  { id: "anime3d",     icon: "✨", label: "アニメ（3D）",       desc: "Pixar風・CGIレンダリング" },
+  { id: "illustration",icon: "🎨", label: "イラスト風",         desc: "フラット・ベクター・カラフル" },
+  { id: "virtual",     icon: "🤖", label: "バーチャル人物",     desc: "オリジナルキャラクター" },
+];
+
 const VIDEO_STYLES = [
   { id: "simple",    icon: "⬜", label: "シンプル",       desc: "白背景・テキスト中心" },
   { id: "pop",       icon: "🌈", label: "ポップ",         desc: "カラフル・アニメ多め" },
@@ -90,7 +99,7 @@ const VIDEO_PURPOSES = [
 const BRAND_STEPS = ["目的・基本", "ターゲット", "トーン・言葉", "ビジュアル", "動画設定"];
 const emptyBrand = {
   name: "", industry: "", color: "", tone: "", targets: [],
-  keigo: "", fixedWords: "", font: "ai", videoStyle: "", bgm: "", duration: "medium",
+  keigo: "", fixedWords: "", bannedWords: "", font: "ai", videoType: "", videoStyle: "", bgm: "",
   purpose: "", purposeDetail: "",
 };
 const SAMPLE_PROJECTS = [
@@ -177,7 +186,7 @@ function BrandModal({ project, onSave, onClose }) {
     (data.targets || []).length > 0,
     !!data.tone && !!data.keigo,
     !!data.color && !!data.font,
-    !!data.videoStyle && !!data.bgm,
+    !!data.videoType && !!data.videoStyle && !!data.bgm,
   ];
 
   return (
@@ -322,7 +331,26 @@ function BrandModal({ project, onSave, onClose }) {
             </div>
           )}
 
-          {step === 4 && (
+                    {step === 4 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "18px", paddingBottom: "16px" }}>
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "4px" }}>映像タイプ <span style={{ color: "#ef4444" }}>*</span></div>
+                <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>動画に何を登場させるか</div>
+                <ChipGrid items={VIDEO_TYPES} selected={data.videoType} onToggle={id => set("videoType", id)} cols={2} accent={accent} />
+
+              </div>
+              <div style={{ borderTop: "1px solid #f3f4f6" }} />
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "4px" }}>雰囲気・テンポ <span style={{ color: "#ef4444" }}>*</span></div>
+                <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>動画全体のトーン</div>
+                <ChipGrid items={VIDEO_STYLES} selected={data.videoStyle} onToggle={id => set("videoStyle", id)} cols={3} accent={accent} />
+              </div>
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>BGMスタイル <span style={{ color: "#ef4444" }}>*</span></div>
+                <ChipGrid items={BGM_STYLES} selected={data.bgm} onToggle={id => set("bgm", id)} cols={3} accent={accent} />
+              </div>
+            </div>
+          )step === 4 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "18px", paddingBottom: "16px" }}>
               <div>
                 <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>動画スタイル <span style={{ color: "#ef4444" }}>*</span></div>
