@@ -244,6 +244,14 @@ function DetailModal({ item, onClose }) {
 }
 
 export default function HistoryPage() {
+  const navigate = useNavigate();
+
+  const currentUser = (() => {
+    try { return JSON.parse(sessionStorage.getItem("posta_user")); } catch { return null; }
+  })();
+  const isDemo = currentUser?.role === "demo";
+  const items = isDemo ? HISTORY : [];
+
   const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState(null);
 
