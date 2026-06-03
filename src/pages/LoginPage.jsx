@@ -21,9 +21,42 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
+  const DEMO_ACCOUNTS = [
+    { id: "posta", password: "0383", role: "demo", plan: "pro", name: "デモユーザー" },
+  ];
+
+  const ADMIN_ACCOUNTS = [
+    { id: "admin", password: "admin0383", role: "admin", name: "管理者" },
+  ];
+
   const handleSubmit = () => {
     setLoading(true);
-    setTimeout(() => { setLoading(false); setDone(true); }, 1400);
+
+    setTimeout(() => {
+      // デモアカウント確認
+      const demoMatch = DEMO_ACCOUNTS.find(a => a.id === email && a.password === password);
+      const adminMatch = ADMIN_ACCOUNTS.find(a => a.id === email && a.password === password);
+
+      if (demoMatch) {
+        sessionStorage.setItem("posta_user", JSON.stringify({ role: "demo", plan: demoMatch.plan, name: demoMatch.name }));
+        setLoading(false);
+        window.scrollTo(0, 0);
+        navigate("/projects");
+        return;
+      }
+
+      if (adminMatch) {
+        sessionStorage.setItem("posta_user", JSON.stringify({ role: "admin", plan: "business", name: adminMatch.name }));
+        setLoading(false);
+        window.scrollTo(0, 0);
+        navigate("/admin");
+        return;
+      }
+
+      // 通常ログイン（デモ）
+      setLoading(false);
+      setDone(true);
+    }, 1000);
   };
 
   const Field = ({ label, type = "text", value, onChange, placeholder }) => {
@@ -101,7 +134,7 @@ export default function LoginPage() {
         ) : (
           <>
             {mode === "signup" && <Field label="お名前" value={name} onChange={setName} placeholder="山田 太郎" />}
-            <Field label="メールアドレス" type="email" value={email} onChange={setEmail} placeholder="taro@example.com" />
+            <Field label="メールアドレス" type="email" value={email} onChange={setEmail} placeholder="例：posta / メールアドレス" />
             {mode !== "forgot" && <Field label="パスワード" type="password" value={password} onChange={setPassword} placeholder="8文字以上" />}
 
             {mode === "login" && (
