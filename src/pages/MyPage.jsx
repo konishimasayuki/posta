@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const PLAN_META = {
-  starter:  { label: "Starter",  color: "#6b7280", bg: "#f9fafb", price: "¥2,980", videoLimit: 0,   postLimit: null, duration: null },
+  free:     { label: "Free",     color: "#059669", bg: "#ecfdf5", price: "¥0",     videoLimit: 3,   postLimit: null, duration: 15 },
+  starter:  { label: "Starter",  color: "#6b7280", bg: "#f9fafb", price: "¥2,980", videoLimit: 10,  postLimit: null, duration: 15 },
   pro:      { label: "Pro",      color: "#f97316", bg: "#fff7ed", price: "¥9,800", videoLimit: 20,  postLimit: null, duration: 60 },
   business: { label: "Business", color: "#7c3aed", bg: "#f5f3ff", price: "¥29,800",videoLimit: 100, postLimit: null, duration: 180 },
 };
@@ -28,7 +29,16 @@ const HISTORY_PREVIEW = [
 export default function MyPage() {
   const navigate = useNavigate();
   const plan = PLAN_META[USER.plan];
-  const [tab, setTab] = useState("profile"); // profile | plan | history
+  const [tab, setTab] = useState("profile");
+  const [avatarImg, setAvatarImg] = useState(null);
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setAvatarImg(ev.target.result);
+    reader.readAsDataURL(file);
+  }; // profile | plan | history
 
   const videoUsagePct = USER.plan === "starter" ? 0 : Math.round((USER.usageVideo / plan.videoLimit) * 100);
 
@@ -38,8 +48,7 @@ export default function MyPage() {
       {/* ヘッダー */}
       <div style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "0 20px", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: "520px", margin: "0 auto", padding: "14px 0", display: "flex", alignItems: "center", gap: "10px" }}>
-          <button onClick={() => navigate("/projects")} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#6b7280" }}>←</button>
-          <div style={{ fontSize: "20px", fontWeight: 900, letterSpacing: "-0.03em" }}>
+<div style={{ fontSize: "20px", fontWeight: 900, letterSpacing: "-0.03em" }}>
             <span style={{ color: "#f97316" }}>Po</span>sta
           </div>
           <div style={{ width: "1px", height: "18px", background: "#e5e7eb" }} />
@@ -57,9 +66,13 @@ export default function MyPage() {
         }}>
           <div style={{ position: "absolute", right: "-15px", top: "-15px", width: "100px", height: "100px", borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
           <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "14px" }}>
-            <div style={{ width: "56px", height: "56px", borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>
-              {USER.avatar}
-            </div>
+            <label style={{ cursor: "pointer", position: "relative" }}>
+              <div style={{ width: "56px", height: "56px", borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", overflow: "hidden", border: "2px solid rgba(255,255,255,0.4)" }}>
+                {avatarImg ? <img src={avatarImg} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span>{USER.avatar}</span>}
+              </div>
+              <div style={{ position: "absolute", bottom: 0, right: 0, width: "18px", height: "18px", borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px" }}>📷</div>
+              <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
+            </label>
             <div>
               <div style={{ fontSize: "18px", fontWeight: 900 }}>{USER.name}</div>
               <div style={{ fontSize: "12px", opacity: 0.8 }}>{USER.email}</div>
