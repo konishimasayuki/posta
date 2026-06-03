@@ -98,8 +98,23 @@ export default function AdminPage() {
   };
 
   const handlePlanSave = (userId, newPlan) => {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, plan: newPlan } : u));
     showToast(`プランを${PLAN_META[newPlan].label}に変更しました`);
     setEditPlan(null);
+  };
+
+  const handleSuspend = (userId, userName) => {
+    if (!window.confirm(`「${userName}」を利用停止にしますか？
+
+利用停止後はPostaが利用できなくなります。`)) return;
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: "suspended" } : u));
+    setSelectedUser(null);
+    showToast(`${userName} を利用停止にしました`);
+  };
+
+  const handleReactivate = (userId, userName) => {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: "active" } : u));
+    showToast(`${userName} の利用を再開しました`);
   };
 
   return (
@@ -205,8 +220,10 @@ export default function AdminPage() {
                           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
                             <span style={{ fontSize: "14px", fontWeight: 800, color: "#111827" }}>{user.name}</span>
                             <PlanBadge plan={user.plan} />
-                            {user.status === "inactive" && (
-                              <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 7px", borderRadius: "20px", background: "#f3f4f6", color: "#9ca3af" }}>非アクティブ</span>
+                            {(user.status === "inactive" || user.status === "suspended") && (
+                              <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 7px", borderRadius: "20px", background: user.status === "suspended" ? "#fef2f2" : "#f3f4f6", color: user.status === "suspended" ? "#ef4444" : "#9ca3af" }}>
+                                {user.status === "suspended" ? "🚫 利用停止中" : "非アクティブ"}
+                              </span>
                             )}
                           </div>
                           <div style={{ fontSize: "11px", color: "#9ca3af" }}>{user.email} · 最終アクセス：{user.lastActive}</div>
@@ -270,7 +287,7 @@ export default function AdminPage() {
                               </button>
                             </div>
                           ) : (
-                            <div style={{ display: "flex", gap: "8px" }}>
+                            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                               <button onClick={() => setEditPlan(user.id)} style={{
                                 flex: 1, padding: "9px", borderRadius: "9px", border: "none",
                                 background: "linear-gradient(135deg, #f97316, #ea580c)",
@@ -285,6 +302,28 @@ export default function AdminPage() {
                               }}>
                                 動画を見る
                               </button>
+                            </div>
+                          )}
+                          <div style={{ marginTop: "8px" }}>
+                              {user.status === "suspended" ? (
+                                <button onClick={() => handleReactivate(user.id, user.name)} style={{
+                                  width: "100%", padding: "9px", borderRadius: "9px", border: "none",
+                                  background: "#ecfdf5", color: "#059669",
+                                  fontWeight: 700, fontSize: "12px", cursor: "pointer",
+                                  border: "1px solid #a7f3d0",
+                                }}>
+                                  ✅ 利用を再開する
+                                </button>
+                              ) : (
+                                <button onClick={() => handleSuspend(user.id, user.name)} style={{
+                                  width: "100%", padding: "9px", borderRadius: "9px", border: "none",
+                                  background: "#fef2f2", color: "#ef4444",
+                                  fontWeight: 700, fontSize: "12px", cursor: "pointer",
+                                  border: "1px solid #fecaca",
+                                }}>
+                                  🚫 利用停止にする
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
