@@ -5,48 +5,37 @@ const HISTORY = [
     type: "both", platforms: ["instagram", "tiktok"], topic: "週末モーニングの新メニューが好評だった",
     createdAt: "2時間前", duration: "short",
     videoThumb: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&q=80",
-    postText: "週末モーニング、新メニュー登場です☕✨
-パンケーキ3種を新しく追加しました。
-#カフェ #モーニング #週末",
+    postText: "週末モーニング、新メニュー登場です☕✨ パンケーキ3種を新しく追加しました。 #カフェ #モーニング #週末",
   },
   { id: 2, projectName: "カフェ Lumière", projectColor: "#ea580c", projectSecondary: "#fff7ed", projectIcon: "🍽",
     type: "sns", platforms: ["x", "note"], topic: "テラス席のリニューアルが完了した",
     createdAt: "昨日", duration: null,
     videoThumb: null,
-    postText: "テラス席、生まれ変わりました☀️
-新しい植栽と日よけで、より快適な空間に。
-#カフェ #テラス席",
+    postText: "テラス席、生まれ変わりました☀️ 新しい植栽と日よけで、より快適な空間に。 #カフェ #テラス席",
   },
   { id: 3, projectName: "FitPro ジム", projectColor: "#dc2626", projectSecondary: "#fef2f2", projectIcon: "💪",
     type: "both", platforms: ["tiktok", "instagram"], topic: "ビフォーアフター30日間の変化を公開",
     createdAt: "2日前", duration: "medium",
     videoThumb: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80",
-    postText: "30日間のトレーニング成果🔥
-体重-4.2kg・体脂肪率-3.1%
-結果にコミット！ #FitPro #筋トレ",
+    postText: "30日間のトレーニング成果🔥 体重-4.2kg・体脂肪率-3.1% 結果にコミット！ #FitPro #筋トレ",
   },
   { id: 4, projectName: "Atelier Blanc", projectColor: "#db2777", projectSecondary: "#fdf2f8", projectIcon: "💅",
     type: "both", platforms: ["instagram", "note"], topic: "新商品ラインナップ紹介",
     createdAt: "3日前", duration: "long",
     videoThumb: "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=400&q=80",
-    postText: "新しいオーガニックラインが登場✨
-自然由来の成分にこだわった3アイテム。
-#AtelierBlanc #自然派",
+    postText: "新しいオーガニックラインが登場✨ 自然由来の成分にこだわった3アイテム。 #AtelierBlanc #自然派",
   },
   { id: 5, projectName: "FitPro ジム", projectColor: "#dc2626", projectSecondary: "#fef2f2", projectIcon: "💪",
     type: "sns", platforms: ["x"], topic: "入会キャンペーン告知",
     createdAt: "4日前", duration: null,
     videoThumb: null,
-    postText: "【入会キャンペーン】今月末まで入会金0円！
-定員まで残り5名。お急ぎください🔥 #FitPro",
+    postText: "【入会キャンペーン】今月末まで入会金0円！ 定員まで残り5名。お急ぎください🔥 #FitPro",
   },
   { id: 6, projectName: "カフェ Lumière", projectColor: "#ea580c", projectSecondary: "#fff7ed", projectIcon: "🍽",
     type: "both", platforms: ["tiktok"], topic: "カフェの朝の準備風景をVlogで",
     createdAt: "5日前", duration: "short",
     videoThumb: "https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400&q=80",
-    postText: "開店前の静かな時間が好きです☕
-豆を挽く香り、光の入り方、全部好き。
-#カフェVlog #朝活",
+    postText: "開店前の静かな時間が好きです☕ 豆を挽く香り、光の入り方、全部好き。 #カフェVlog #朝活",
   },
 ];
 
