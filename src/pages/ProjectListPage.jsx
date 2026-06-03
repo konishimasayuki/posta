@@ -375,12 +375,27 @@ function ProjectList({ projects, onSelect, onNew, onEdit }) {
         {/* ヒーロー */}
         <div style={{ background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)", borderRadius: "20px", padding: "20px 22px", marginBottom: "20px", color: "#fff", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", right: "-15px", top: "-15px", width: "100px", height: "100px", borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
-          <div style={{ fontSize: "10px", fontWeight: 700, opacity: 0.85, letterSpacing: "0.1em", marginBottom: "6px" }}>AI VIDEO & SNS GENERATOR</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, opacity: 0.85, letterSpacing: "0.1em" }}>AI VIDEO & SNS GENERATOR</div>
+            {isDemo && <span style={{ fontSize: "9px", fontWeight: 700, background: "rgba(255,255,255,0.25)", padding: "1px 8px", borderRadius: "20px" }}>🎭 デモ</span>}
+          </div>
           <div style={{ fontSize: "20px", fontWeight: 900, marginBottom: "4px" }}>プロジェクトを選んで生成</div>
           <div style={{ fontSize: "12px", opacity: 0.85 }}>ブランド設定が自動反映 · Posta AI動画 · SNS投稿文</div>
         </div>
 
         <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "10px" }}>プロジェクト（{projects.length}件）</div>
+
+        {projects.length === 0 && (
+          <div style={{ textAlign: "center", padding: "40px 20px", background: "#fff", borderRadius: "16px", border: "2px dashed #e5e7eb", marginBottom: "10px" }}>
+            <div style={{ fontSize: "40px", marginBottom: "12px" }}>📁</div>
+            <div style={{ fontSize: "15px", fontWeight: 800, color: "#111827", marginBottom: "6px" }}>プロジェクトがまだありません</div>
+            <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "16px", lineHeight: 1.7 }}>「＋ 新規プロジェクト作成」から<br />最初のブランドを設定しましょう</div>
+            <button onClick={onNew} style={{ padding: "10px 24px", borderRadius: "20px", border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
+              ＋ 新規プロジェクト作成
+            </button>
+          </div>
+        )}
+
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {projects.map(p => {
             const color = gc(p.color); const industry = gi(p.industry);
@@ -485,7 +500,14 @@ function ProjectList({ projects, onSelect, onNew, onEdit }) {
 // ─── ルート ───────────────────────────────────────────
 export default function ProjectListPage() {
   const navigate = useNavigate();
-  const [projects, setProjects] = useState(SAMPLE_PROJECTS);
+
+  // デモユーザー判定
+  const currentUser = (() => {
+    try { return JSON.parse(sessionStorage.getItem("posta_user")); } catch { return null; }
+  })();
+  const isDemo = currentUser?.role === "demo";
+
+  const [projects, setProjects] = useState(isDemo ? SAMPLE_PROJECTS : []);
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState(null);
 
