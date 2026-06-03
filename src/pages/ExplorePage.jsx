@@ -79,6 +79,13 @@ function WorkCard({ work, onLike, onUseTemplate }) {
 
 export default function ExplorePage() {
   const navigate = useNavigate();
+
+  const currentUser = (() => {
+    try { return JSON.parse(sessionStorage.getItem("posta_user")); } catch { return null; }
+  })();
+  const isDemo = currentUser?.role === "demo";
+
+  // 探索は全ユーザーが見れる（いいねはデモのみ全機能）
   const [works, setWorks] = useState(WORKS);
   const [category, setCategory] = useState("すべて");
   const [sort, setSort] = useState("popular");
