@@ -136,6 +136,14 @@ const gp = id => VIDEO_PURPOSES.find(p => p.id === id);
 const gk = id => KEIGO.find(k => k.id === id);
 
 // ─── 小コンポーネント ─────────────────────────────────
+function Toast({ msg }) {
+  return msg ? (
+    <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#10b981", color: "#fff", padding: "11px 20px", borderRadius: "12px", fontWeight: 700, fontSize: "13px", zIndex: 500, boxShadow: "0 4px 20px #10b98140", whiteSpace: "nowrap" }}>
+      ✓ {msg}
+    </div>
+  ) : null;
+}
+
 function Header({ title, onBack, accentColor, rightEl }) {
   return (
     <div style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "0 16px", position: "sticky", top: 0, zIndex: 100 }}>
@@ -532,6 +540,7 @@ export default function ProjectListPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8f9fb", fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif", color: "#111827" }}>
+      <Toast msg={toast} />
       <ProjectList projects={projects} onSelect={handleSelect} onNew={() => setModal("new")} onEdit={p => setModal(p)} />
       {modal && <BrandModal project={modal === "new" ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
     </div>
