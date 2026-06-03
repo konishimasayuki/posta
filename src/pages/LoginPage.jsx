@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 
 function AutoRedirect({ navigate }) {
   useEffect(() => {
-    const timer = setTimeout(() => navigate("/projects"), 1500);
+    const timer = setTimeout(() => {
+      window.scrollTo(0, 0);
+      navigate("/projects");
+    }, 1500);
     return () => clearTimeout(timer);
   }, [navigate]);
   return null;
