@@ -618,7 +618,7 @@ JSONのみ出力（前後の説明・バッククォート不要）：
             }}>
               <div style={{ fontSize: "12px", fontWeight: 800, color: "#374151", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
                 🎬 生成された動画
-                <span style={{ fontSize: "10px", fontWeight: 600, color: "#9ca3af", fontWeight: 400 }}>· Posta AI · 9:16</span>
+                <span style={{ fontSize: "10px", fontWeight: 400, color: "#9ca3af" }}>· Posta AI · 9:16</span>
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}>
                   <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", animation: "pulse 2s infinite" }} />
                   <span style={{ fontSize: "10px", color: "#10b981", fontWeight: 700 }}>生成完了</span>
