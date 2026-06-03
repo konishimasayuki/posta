@@ -247,8 +247,8 @@ export default function HistoryPage() {
   const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState(null);
 
-  const projects = [...new Set(HISTORY.map(h => h.projectName))];
-  const filtered = filter === "all" ? HISTORY : HISTORY.filter(h => h.projectName === filter);
+  const projects = [...new Set(items.map(h => h.projectName))];
+  const filtered = filter === "all" ? items : items.filter(h => h.projectName === filter);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8f9fb", fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif", color: "#111827" }}>
@@ -286,8 +286,8 @@ export default function HistoryPage() {
         {/* 統計 */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "16px" }}>
           {[
-            ["🎬", "動画", HISTORY.filter(h => h.videoThumb).length + "本"],
-            ["📝", "投稿文", HISTORY.length + "件"],
+            ["🎬", "動画", items.filter(h => h.videoThumb).length + "本"],
+            ["📝", "投稿文", items.length + "件"],
             ["📅", "最終生成", "2時間前"],
           ].map(([icon, label, val]) => (
             <div key={label} style={{ background: "#fff", borderRadius: "12px", padding: "12px", border: "1px solid #e5e7eb", textAlign: "center" }}>
@@ -297,6 +297,18 @@ export default function HistoryPage() {
             </div>
           ))}
         </div>
+
+        {/* 空の状態 */}
+        {items.length === 0 && (
+          <div style={{ textAlign: "center", padding: "40px 20px", background: "#fff", borderRadius: "16px", border: "2px dashed #e5e7eb" }}>
+            <div style={{ fontSize: "40px", marginBottom: "12px" }}>🎬</div>
+            <div style={{ fontSize: "15px", fontWeight: 800, color: "#111827", marginBottom: "6px" }}>まだ生成した作品がありません</div>
+            <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "16px", lineHeight: 1.7 }}>プロジェクトを作成して<br />動画・投稿文を生成してみましょう</div>
+            <button onClick={() => navigate("/projects")} style={{ padding: "10px 24px", borderRadius: "20px", border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
+              プロジェクト一覧へ
+            </button>
+          </div>
+        )}
 
         {/* リスト */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
