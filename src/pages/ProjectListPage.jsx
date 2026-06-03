@@ -11,6 +11,10 @@ const INDUSTRIES = [
   { id: "ec",         icon: "🛍", label: "EC・小売" },
   { id: "it",         icon: "💻", label: "IT・Web" },
   { id: "creative",   icon: "🎨", label: "クリエイティブ" },
+  { id: "service",    icon: "🤝", label: "サービス業" },
+  { id: "legal",      icon: "⚖️", label: "士業" },
+  { id: "auto",       icon: "🚗", label: "自動車販売" },
+  { id: "realestate", icon: "🏠", label: "不動産" },
   { id: "other",      icon: "📦", label: "その他" },
 ];
 const TARGETS = [
@@ -48,10 +52,14 @@ const COLORS = [
   { id: "gray",   primary: "#374151", secondary: "#f9fafb", label: "モノクロ" },
 ];
 const FONTS = [
-  { id: "ai",     label: "AIお任せ",   desc: "毎回最適を自動選択" },
-  { id: "gothic", label: "ゴシック体", desc: "読みやすい・定番" },
-  { id: "mincho", label: "明朝体",     desc: "上品・高級感" },
-  { id: "round",  label: "丸ゴシック", desc: "かわいい・やわらか" },
+  { id: "ai",       label: "AIお任せ",   desc: "毎回最適を自動選択" },
+  { id: "gothic",   label: "ゴシック体", desc: "読みやすい・定番" },
+  { id: "mincho",   label: "明朝体",     desc: "上品・高級感" },
+  { id: "round",    label: "丸ゴシック", desc: "かわいい・やわらか" },
+  { id: "serif",    label: "セリフ体",   desc: "欧文・エレガント" },
+  { id: "display",  label: "ディスプレイ",desc: "インパクト・見出し向け" },
+  { id: "handwrite",label: "手書き風",   desc: "温かみ・親近感" },
+  { id: "mono",     label: "等幅体",     desc: "テック・クール・無機質" },
 ];
 const VIDEO_STYLES = [
   { id: "simple",    icon: "⬜", label: "シンプル",       desc: "白背景・テキスト中心" },
@@ -174,7 +182,7 @@ function BrandModal({ project, onSave, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end" }} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", maxHeight: "85vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "16px 20px 0", flexShrink: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <div style={{ fontSize: "16px", fontWeight: 900 }}>{project?.id ? "ブランド設定を編集" : "新規プロジェクト作成"}</div>
@@ -199,7 +207,7 @@ function BrandModal({ project, onSave, onClose }) {
                 <ChipGrid items={VIDEO_PURPOSES} selected={data.purpose} onToggle={id => set("purpose", id)} cols={4} accent={accent} />
                 {data.purpose && (
                   <textarea value={data.purposeDetail || ""} onChange={e => set("purposeDetail", e.target.value)}
-                    placeholder="例：週末モーニングを近隣の30代女性に知ってもらいたい。来店したくなるような雰囲気を伝えたい。"
+                    placeholder={`例：${{"attract":"近隣の30〜40代女性に来店してもらいたい。週末の雰囲気を伝えたい。","product":"新商品の魅力を20〜30代に伝えたい。使用シーンを動画で見せたい。","vlog":"日常の裏側を見せてファンを増やしたい。スタッフの人柄を伝えたい。","tutorial":"サービスの使い方を丁寧に説明したい。初心者向けにわかりやすく。","brand":"ブランドの世界観・こだわりを伝えたい。高級感・信頼感を構築したい。","campaign":"期間限定セールを告知したい。来店・購入のきっかけを作りたい。","recruit":"スタッフ募集。職場の雰囲気・働きやすさを伝えたい。","other":"目的を自由に記入してください。"}[data.purpose] || "具体的な目的を入力してください。"}`}
                     rows={3} style={{ width: "100%", marginTop: "10px", padding: "11px 13px", borderRadius: "10px", border: "1.5px solid #e5e7eb", fontSize: "13px", outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.7, color: "#111827" }}
                     onFocus={e => e.target.style.borderColor = accent} onBlur={e => e.target.style.borderColor = "#e5e7eb"} />
                 )}
@@ -262,10 +270,17 @@ function BrandModal({ project, onSave, onClose }) {
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "4px" }}>固定ワード・禁止ワード <span style={{ color: "#9ca3af", fontWeight: 400 }}>任意</span></div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "4px" }}>固定ワード <span style={{ color: "#9ca3af", fontWeight: 400 }}>任意</span></div>
                 <textarea value={data.fixedWords || ""} onChange={e => set("fixedWords", e.target.value)}
-                  placeholder={"固定→「ブランド名」「キャッチフレーズ」\n禁止→「安い」「格安」"}
-                  rows={3} style={{ width: "100%", padding: "11px 13px", borderRadius: "10px", border: "1.5px solid #e5e7eb", fontSize: "13px", outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.7, color: "#111827" }}
+                  placeholder="例：ブランド名・キャッチフレーズ・必ず使う言葉"
+                  rows={2} style={{ width: "100%", padding: "11px 13px", borderRadius: "10px", border: "1.5px solid #e5e7eb", fontSize: "13px", outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.7, color: "#111827" }}
+                  onFocus={e => e.target.style.borderColor = accent} onBlur={e => e.target.style.borderColor = "#e5e7eb"} />
+              </div>
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "4px" }}>禁止ワード <span style={{ color: "#9ca3af", fontWeight: 400 }}>任意</span></div>
+                <textarea value={data.bannedWords || ""} onChange={e => set("bannedWords", e.target.value)}
+                  placeholder="例：安い・格安・激安（ブランドイメージに合わない言葉）"
+                  rows={2} style={{ width: "100%", padding: "11px 13px", borderRadius: "10px", border: "1.5px solid #e5e7eb", fontSize: "13px", outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.7, color: "#111827" }}
                   onFocus={e => e.target.style.borderColor = accent} onBlur={e => e.target.style.borderColor = "#e5e7eb"} />
               </div>
             </div>
@@ -317,20 +332,7 @@ function BrandModal({ project, onSave, onClose }) {
                 <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>BGMスタイル <span style={{ color: "#ef4444" }}>*</span></div>
                 <ChipGrid items={BGM_STYLES} selected={data.bgm} onToggle={id => set("bgm", id)} cols={3} accent={accent} />
               </div>
-              <div>
-                <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>動画の尺</div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  {[["short", "〜15秒", "Shorts/Reels"], ["medium", "30〜60秒", "スタンダード"], ["long", "1〜3分", "解説・Vlog"]].map(([id, label, desc]) => {
-                    const sel = data.duration === id;
-                    return (
-                      <div key={id} onClick={() => set("duration", id)} style={{ flex: 1, padding: "12px 8px", borderRadius: "11px", cursor: "pointer", textAlign: "center", border: `1.5px solid ${sel ? accent : "#e5e7eb"}`, background: sel ? accent + "12" : "#fff", transition: "all 0.15s" }}>
-                        <div style={{ fontSize: "13px", fontWeight: 800, color: sel ? accent : "#111827" }}>{label}</div>
-                        <div style={{ fontSize: "10px", color: "#9ca3af", marginTop: "2px" }}>{desc}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+
             </div>
           )}
         </div>
@@ -353,14 +355,14 @@ function ProjectList({ projects, onSelect, onNew, onEdit }) {
   return (
     <>
       <Header title="プロジェクト一覧" accentColor="#f97316"
-        rightEl={<button onClick={onNew} style={{ padding: "8px 14px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: "12px", cursor: "pointer", boxShadow: "0 2px 10px #f9731633" }}>＋ 新規作成</button>} />
+        rightEl={<button onClick={onNew} style={{ padding: "8px 14px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: "12px", cursor: "pointer", boxShadow: "0 2px 10px #f9731633" }}>＋ 新規プロジェクト作成</button>} />
       <div style={{ width: "100%", padding: "20px 16px 60px" }}>
         {/* ヒーロー */}
         <div style={{ background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)", borderRadius: "20px", padding: "20px 22px", marginBottom: "20px", color: "#fff", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", right: "-15px", top: "-15px", width: "100px", height: "100px", borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
           <div style={{ fontSize: "10px", fontWeight: 700, opacity: 0.85, letterSpacing: "0.1em", marginBottom: "6px" }}>AI VIDEO & SNS GENERATOR</div>
           <div style={{ fontSize: "20px", fontWeight: 900, marginBottom: "4px" }}>プロジェクトを選んで生成</div>
-          <div style={{ fontSize: "12px", opacity: 0.85 }}>ブランド設定が自動反映 · Kling AI動画 · SNS投稿文</div>
+          <div style={{ fontSize: "12px", opacity: 0.85 }}>ブランド設定が自動反映 · Posta AI動画 · SNS投稿文</div>
         </div>
 
         <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "10px" }}>プロジェクト（{projects.length}件）</div>
