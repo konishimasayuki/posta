@@ -350,7 +350,9 @@ function BrandModal({ project, onSave, onClose }) {
                 <ChipGrid items={BGM_STYLES} selected={data.bgm} onToggle={id => set("bgm", id)} cols={3} accent={accent} />
               </div>
             </div>
-          )step === 4 && (
+          }
+
+          {step === 4 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "18px", paddingBottom: "16px" }}>
               <div>
                 <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>動画スタイル <span style={{ color: "#ef4444" }}>*</span></div>
