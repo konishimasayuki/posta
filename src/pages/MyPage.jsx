@@ -30,7 +30,7 @@ export default function MyPage() {
   const navigate = useNavigate();
   const plan = PLAN_META[USER.plan];
   const [tab, setTab] = useState("profile");
-  const [avatarImg, setAvatarImg] = useState(null);
+  const [avatarImg, setAvatarImg] = useState("https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&q=80");
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
