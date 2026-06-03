@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const HISTORY = [
   { id: 1, projectName: "カフェ Lumière", projectColor: "#ea580c", projectSecondary: "#fff7ed", projectIcon: "🍽",
