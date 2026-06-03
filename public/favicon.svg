@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="20" fill="url(#g)"/>
+  <text x="50" y="62" font-family="Arial Black, sans-serif" font-weight="900" font-size="42" text-anchor="middle">
+    <tspan fill="white">Po</tspan><tspan fill="#1e1b4b">sta</tspan>
+  </text>
+</svg>
