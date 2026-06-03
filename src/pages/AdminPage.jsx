@@ -63,7 +63,7 @@ export default function AdminPage() {
   const [toast, setToast] = useState(null);
   const [filterPlan, setFilterPlan] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newUser, setNewUser] = useState({ name: "", email: "", plan: "free" });
+  const [newUser, setNewUser] = useState({ name: "", email: "", loginId: "", password: "", plan: "free" });
   const [demoAccounts, setDemoAccounts] = useState([
     { id: 1, loginId: "posta", password: "0383", plan: "pro", name: "デモユーザー" },
   ]);
@@ -82,11 +82,13 @@ export default function AdminPage() {
   };
 
   const handleAddUser = () => {
-    if (!newUser.name || !newUser.email) return;
+    if (!newUser.name || !newUser.email || !newUser.loginId || !newUser.password) return;
     const user = {
       id: Date.now(),
       name: newUser.name,
       email: newUser.email,
+      loginId: newUser.loginId,
+      password: newUser.password,
       plan: newUser.plan,
       videoUsage: 0,
       postUsage: 0,
@@ -96,7 +98,7 @@ export default function AdminPage() {
       status: "active",
     };
     setUsers(prev => [...prev, user]);
-    setNewUser({ name: "", email: "", plan: "free" });
+    setNewUser({ name: "", email: "", loginId: "", password: "", plan: "free" });
     setShowAddModal(false);
     showToast(`${user.name} を追加しました`);
   };
@@ -243,7 +245,7 @@ export default function AdminPage() {
                               <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 7px", borderRadius: "20px", background: "#f3f4f6", color: "#9ca3af" }}>非アクティブ</span>
                             )}
                           </div>
-                          <div style={{ fontSize: "11px", color: "#9ca3af" }}>{user.email} · 最終: {user.lastActive}</div>
+                          <div style={{ fontSize: "11px", color: "#9ca3af" }}>{user.email} · ID: {user.loginId || "-"} · 最終: {user.lastActive}</div>
                         </div>
                         <button onClick={() => setSelectedUser(selectedUser === user.id ? null : user.id)} style={{
                           padding: "6px 12px", borderRadius: "8px", border: "1px solid #e5e7eb",
@@ -483,6 +485,14 @@ export default function AdminPage() {
                 <input type="email" value={newUser.email} onChange={e => setNewUser(p => ({ ...p, email: e.target.value }))} placeholder="例：taro@example.com" style={{ width: "100%", padding: "11px 13px", borderRadius: "10px", border: "1.5px solid #e5e7eb", fontSize: "14px", outline: "none", fontFamily: "inherit", color: "#111827" }} />
               </div>
               <div>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "5px" }}>ログインID *</div>
+                <input value={newUser.loginId} onChange={e => setNewUser(p => ({ ...p, loginId: e.target.value }))} placeholder="例：yamada01" style={{ width: "100%", padding: "11px 13px", borderRadius: "10px", border: "1.5px solid #e5e7eb", fontSize: "14px", outline: "none", fontFamily: "inherit", color: "#111827" }} />
+              </div>
+              <div>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "5px" }}>パスワード *</div>
+                <input value={newUser.password} onChange={e => setNewUser(p => ({ ...p, password: e.target.value }))} placeholder="例：1234" style={{ width: "100%", padding: "11px 13px", borderRadius: "10px", border: "1.5px solid #e5e7eb", fontSize: "14px", outline: "none", fontFamily: "inherit", color: "#111827" }} />
+              </div>
+              <div>
                 <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>プラン</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   {[
@@ -515,11 +525,11 @@ export default function AdminPage() {
                 <div style={{ fontSize: "11px", color: "#c2410c", fontWeight: 700, marginBottom: "2px" }}>💡 Tips</div>
                 <div style={{ fontSize: "11px", color: "#92400e", lineHeight: 1.6 }}>Proプランを無料で付与して営業先に試してもらうのがおすすめ。使ってもらえれば継続率が高まります。</div>
               </div>
-              <button onClick={handleAddUser} disabled={!newUser.name || !newUser.email} style={{
+              <button onClick={handleAddUser} disabled={!newUser.name || !newUser.email || !newUser.loginId || !newUser.password} style={{
                 width: "100%", padding: "14px", borderRadius: "12px", border: "none",
-                background: (!newUser.name || !newUser.email) ? "#e5e7eb" : "linear-gradient(135deg, #f97316, #ea580c)",
-                color: (!newUser.name || !newUser.email) ? "#9ca3af" : "#fff",
-                fontWeight: 800, fontSize: "14px", cursor: (!newUser.name || !newUser.email) ? "default" : "pointer",
+                background: (!newUser.name || !newUser.email || !newUser.loginId || !newUser.password) ? "#e5e7eb" : "linear-gradient(135deg, #f97316, #ea580c)",
+                color: (!newUser.name || !newUser.email || !newUser.loginId || !newUser.password) ? "#9ca3af" : "#fff",
+                fontWeight: 800, fontSize: "14px", cursor: (!newUser.name || !newUser.email || !newUser.loginId || !newUser.password) ? "default" : "pointer",
               }}>
                 ユーザーを追加する
               </button>
