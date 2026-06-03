@@ -374,7 +374,7 @@ function BrandModal({ project, onSave, onClose }) {
 }
 
 // ─── 画面1: プロジェクト一覧 ─────────────────────────
-function ProjectList({ projects, onSelect, onNew, onEdit }) {
+function ProjectList({ projects, onSelect, onNew, onEdit, isDemo }) {
   return (
     <>
       <Header title="プロジェクト一覧" accentColor="#f97316"
@@ -541,7 +541,7 @@ export default function ProjectListPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8f9fb", fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif", color: "#111827" }}>
       <Toast msg={toast} />
-      <ProjectList projects={projects} onSelect={handleSelect} onNew={() => setModal("new")} onEdit={p => setModal(p)} />
+      <ProjectList projects={projects} onSelect={handleSelect} onNew={() => setModal("new")} onEdit={p => setModal(p)} isDemo={isDemo} />
       {modal && <BrandModal project={modal === "new" ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
     </div>
   );
