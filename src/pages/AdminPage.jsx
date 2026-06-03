@@ -183,7 +183,7 @@ export default function AdminPage() {
                 }}>
                   {l}
                   <span style={{ marginLeft: "5px", fontSize: "10px", color: filterPlan === v ? "#f97316" : "#9ca3af" }}>
-                    {v === "all" ? USERS.length : USERS.filter(u => u.plan === v).length}
+                    {v === "all" ? users.length : users.filter(u => u.plan === v).length}
                   </span>
                 </button>
               ))}
@@ -301,7 +301,7 @@ export default function AdminPage() {
         {tab === "videos" && (
           <div>
             <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "12px" }}>ユーザーごとの生成動画</div>
-            {USERS.filter(u => VIDEO_HISTORY[u.id]).map(user => (
+            {users.filter(u => VIDEO_HISTORY[u.id]).map(user => (
               <div key={user.id} style={{ marginBottom: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
                   <span style={{ fontSize: "14px", fontWeight: 800, color: "#111827" }}>{user.name}</span>
