@@ -117,6 +117,26 @@ export default function AdminPage() {
     showToast(`${userName} の利用を再開しました`);
   };
 
+  const [demoAccounts, setDemoAccounts] = useState([
+    { id: 1, loginId: "posta", password: "0383", plan: "pro", name: "デモユーザー" },
+  ]);
+  const [newDemo, setNewDemo] = useState({ loginId: "", password: "", plan: "pro", name: "" });
+  const [showDemoAdd, setShowDemoAdd] = useState(false);
+
+  const handleAddDemo = () => {
+    if (!newDemo.loginId || !newDemo.password) return;
+    setDemoAccounts(prev => [...prev, { ...newDemo, id: Date.now() }]);
+    setNewDemo({ loginId: "", password: "", plan: "pro", name: "" });
+    setShowDemoAdd(false);
+    showToast("デモアカウントを追加しました");
+  };
+
+  const handleDeleteDemo = (id) => {
+    if (!window.confirm("このデモアカウントを削除しますか？")) return;
+    setDemoAccounts(prev => prev.filter(a => a.id !== id));
+    showToast("削除しました");
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "#f8f9fb", fontFamily: "'Noto Sans JP','Hiragino Kaku Gothic ProN',sans-serif", color: "#111827" }}>
 
@@ -161,7 +181,7 @@ export default function AdminPage() {
 
         {/* タブ */}
         <div style={{ display: "flex", gap: "3px", background: "#e5e7eb", borderRadius: "12px", padding: "3px", marginBottom: "16px" }}>
-          {[["users","ユーザー管理"],["videos","動画一覧"]].map(([t, l]) => (
+          {[["users","ユーザー管理"],["videos","動画一覧"],["settings","設定"]].map(([t, l]) => (
             <button key={t} onClick={() => setTab(t)} style={{
               flex: 1, padding: "9px", borderRadius: "9px", border: "none",
               background: tab === t ? "#fff" : "transparent",
@@ -332,6 +352,93 @@ export default function AdminPage() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* 設定タブ */}
+        {tab === "settings" && (
+          <div>
+            {/* デモアカウント管理 */}
+            <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "18px", marginBottom: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                <div>
+                  <div style={{ fontSize: "14px", fontWeight: 800, color: "#111827" }}>🎭 デモアカウント管理</div>
+                  <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "2px" }}>営業・デモ用のログインID・パスワードを管理</div>
+                </div>
+                <button onClick={() => setShowDemoAdd(true)} style={{ padding: "7px 12px", borderRadius: "9px", border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
+                  ＋ 追加
+                </button>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {demoAccounts.map(account => {
+                  const planMeta = PLAN_META[account.plan];
+                  return (
+                    <div key={account.id} style={{ background: "#f8f9fb", borderRadius: "12px", padding: "12px 14px", border: "1px solid #e5e7eb" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                            <span style={{ fontSize: "13px", fontWeight: 700, color: "#111827" }}>{account.name || "デモユーザー"}</span>
+                            <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 7px", borderRadius: "20px", background: planMeta.bg, color: planMeta.color }}>{planMeta.label}</span>
+                          </div>
+                          <div style={{ display: "flex", gap: "12px", fontSize: "12px", color: "#6b7280" }}>
+                            <span>ID: <strong style={{ color: "#111827" }}>{account.loginId}</strong></span>
+                            <span>PW: <strong style={{ color: "#111827" }}>{account.password}</strong></span>
+                          </div>
+                        </div>
+                        <button onClick={() => handleDeleteDemo(account.id)} style={{ padding: "5px 10px", borderRadius: "8px", border: "1px solid #fecaca", background: "#fef2f2", color: "#ef4444", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>
+                          削除
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* デモアカウント追加フォーム */}
+              {showDemoAdd && (
+                <div style={{ marginTop: "12px", background: "#fff7ed", borderRadius: "12px", padding: "14px", border: "1px solid #fed7aa" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "10px" }}>新しいデモアカウント</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <input value={newDemo.name} onChange={e => setNewDemo(p => ({ ...p, name: e.target.value }))}
+                      placeholder="名前（例：デモユーザー）"
+                      style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px", outline: "none", fontFamily: "inherit" }} />
+                    <input value={newDemo.loginId} onChange={e => setNewDemo(p => ({ ...p, loginId: e.target.value }))}
+                      placeholder="ログインID（例：demo01）"
+                      style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px", outline: "none", fontFamily: "inherit" }} />
+                    <input value={newDemo.password} onChange={e => setNewDemo(p => ({ ...p, password: e.target.value }))}
+                      placeholder="パスワード（例：1234）"
+                      style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px", outline: "none", fontFamily: "inherit" }} />
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      {Object.entries(PLAN_META).map(([id, p]) => (
+                        <div key={id} onClick={() => setNewDemo(prev => ({ ...prev, plan: id }))} style={{
+                          flex: 1, padding: "7px 4px", borderRadius: "8px", textAlign: "center", cursor: "pointer",
+                          border: `1.5px solid ${newDemo.plan === id ? p.color : "#e5e7eb"}`,
+                          background: newDemo.plan === id ? p.bg : "#fff", fontSize: "10px", fontWeight: 700,
+                          color: newDemo.plan === id ? p.color : "#6b7280",
+                        }}>{p.label}</div>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button onClick={() => setShowDemoAdd(false)} style={{ flex: 1, padding: "9px", borderRadius: "9px", border: "1px solid #e5e7eb", background: "#fff", color: "#374151", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>キャンセル</button>
+                      <button onClick={handleAddDemo} disabled={!newDemo.loginId || !newDemo.password} style={{ flex: 2, padding: "9px", borderRadius: "9px", border: "none", background: (!newDemo.loginId || !newDemo.password) ? "#e5e7eb" : "linear-gradient(135deg, #f97316, #ea580c)", color: (!newDemo.loginId || !newDemo.password) ? "#9ca3af" : "#fff", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>追加する</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 管理者情報 */}
+            <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "18px" }}>
+              <div style={{ fontSize: "14px", fontWeight: 800, color: "#111827", marginBottom: "12px" }}>🔐 管理者アカウント</div>
+              <div style={{ background: "#f8f9fb", borderRadius: "10px", padding: "12px 14px", border: "1px solid #e5e7eb" }}>
+                <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                  ID: <strong style={{ color: "#111827" }}>admin</strong>
+                  　　PW: <strong style={{ color: "#111827" }}>admin0383</strong>
+                </div>
+                <div style={{ fontSize: "10px", color: "#9ca3af", marginTop: "4px" }}>※ パスワードは本番実装時に変更してください</div>
+              </div>
             </div>
           </div>
         )}
