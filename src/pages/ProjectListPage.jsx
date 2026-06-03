@@ -331,13 +331,12 @@ function BrandModal({ project, onSave, onClose }) {
             </div>
           )}
 
-                    {step === 4 && (
+          {step === 4 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "18px", paddingBottom: "16px" }}>
               <div>
                 <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "4px" }}>映像タイプ <span style={{ color: "#ef4444" }}>*</span></div>
                 <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>動画に何を登場させるか</div>
                 <ChipGrid items={VIDEO_TYPES} selected={data.videoType} onToggle={id => set("videoType", id)} cols={2} accent={accent} />
-
               </div>
               <div style={{ borderTop: "1px solid #f3f4f6" }} />
               <div>
@@ -349,20 +348,6 @@ function BrandModal({ project, onSave, onClose }) {
                 <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>BGMスタイル <span style={{ color: "#ef4444" }}>*</span></div>
                 <ChipGrid items={BGM_STYLES} selected={data.bgm} onToggle={id => set("bgm", id)} cols={3} accent={accent} />
               </div>
-            </div>
-          }
-
-          {step === 4 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "18px", paddingBottom: "16px" }}>
-              <div>
-                <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>動画スタイル <span style={{ color: "#ef4444" }}>*</span></div>
-                <ChipGrid items={VIDEO_STYLES} selected={data.videoStyle} onToggle={id => set("videoStyle", id)} cols={3} accent={accent} />
-              </div>
-              <div>
-                <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>BGMスタイル <span style={{ color: "#ef4444" }}>*</span></div>
-                <ChipGrid items={BGM_STYLES} selected={data.bgm} onToggle={id => set("bgm", id)} cols={3} accent={accent} />
-              </div>
-
             </div>
           )}
         </div>
