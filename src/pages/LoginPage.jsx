@@ -187,7 +187,16 @@ export default function LoginPage() {
         )}
       </div>
 
-      <div style={{ marginTop: "20px", fontSize: "11px", color: "#9ca3af", textAlign: "center", lineHeight: 1.8 }}>
+      {/* デモ情報 */}
+      <div style={{ marginTop: "16px", width: "100%", maxWidth: "400px", background: "#fff7ed", borderRadius: "12px", border: "1px solid #fed7aa", padding: "12px 16px", textAlign: "center" }}>
+        <div style={{ fontSize: "11px", fontWeight: 700, color: "#f97316", marginBottom: "6px" }}>🎭 デモアカウント</div>
+        <div style={{ fontSize: "13px", color: "#374151", lineHeight: 1.8 }}>
+          ID：<strong>posta</strong>　パスワード：<strong>0383</strong>
+        </div>
+        <div style={{ fontSize: "10px", color: "#9ca3af", marginTop: "4px" }}>サンプルデータ入りで全機能を体験できます</div>
+      </div>
+
+      <div style={{ marginTop: "12px", fontSize: "11px", color: "#9ca3af", textAlign: "center", lineHeight: 1.8 }}>
         ログインすることで<span style={{ color: "#374151", cursor: "pointer" }}>利用規約</span>・<span style={{ color: "#374151", cursor: "pointer" }}>プライバシーポリシー</span>に同意したものとみなします
       </div>
 
