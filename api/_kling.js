@@ -2,57 +2,45 @@
 // Kling AI の認証と共通設定
 // ※ ファイル名の先頭が _ のものは Vercel でAPIエンドポイントにならない
 
-import jwt from "jsonwebtoken";
-
-export const KLING_BASE = "https://api.klingai.com";
-
-/**
- * Kling API 用のJWTトークンを生成する
- * Access Key を発行者(iss)、Secret Key を署名鍵として使う
- */
-export function createKlingToken() {
-  const ak = process.env.KLING_ACCESS_KEY;
-  const sk = process.env.KLING_SECRET_KEY;
-
-  if (!ak || !sk) {
-    throw new Error("KLING_ACCESS_KEY / KLING_SECRET_KEY が設定されていません");
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-
-  return jwt.sign(
-    {
-      iss: ak,          // 誰からのリクエストか
-      exp: now + 1800,  // 30分で失効
-      nbf: now - 5,     // 5秒前から有効（時刻ズレ対策）
-    },
-    sk,
-    { header: { alg: "HS256", typ: "JWT" } }
-  );
-}
+// リージョンによってベースURLが違う。合わない場合は環境変数 KLING_API_BASE で上書きする
+export const KLING_BASE = process.env.KLING_API_BASE || "https://api-singapore.klingai.com";
 
 /**
  * Kling API を叩く共通関数
+ * APIキーをそのまま Bearer トークンとして送る
  */
 export async function klingFetch(path, options = {}) {
-  const token = createKlingToken();
+  const apiKey = process.env.KLING_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("KLING_API_KEY が設定されていません");
+  }
 
   const res = await fetch(`${KLING_BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${apiKey}`,
       ...options.headers,
     },
   });
 
-  const data = await res.json().catch(() => ({}));
+  const raw = await res.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    // JSONで返ってこない場合は本文をそのままエラーに含める
+    const err = new Error(`Kling APIが不正な応答を返しました (HTTP ${res.status}): ${raw.slice(0, 200)}`);
+    err.status = res.status;
+    throw err;
+  }
 
   if (!res.ok || (data.code !== undefined && data.code !== 0)) {
-    const msg = data.message || `Kling APIエラー (HTTP ${res.status})`;
-    const err = new Error(msg);
+    const err = new Error(data.message || `Kling APIエラー (HTTP ${res.status})`);
     err.status = res.status;
     err.klingCode = data.code;
+    err.detail = data;
     throw err;
   }
 
@@ -61,7 +49,7 @@ export async function klingFetch(path, options = {}) {
 
 /**
  * プランごとの動画尺の上限（秒）
- * ※ 判定は必ずサーバー側で行うこと
+ * ※ 判定は必ずサーバー側で行うこと（フロントの値を信用しない）
  */
 export const PLAN_LIMITS = {
   free:     { maxSeconds: 5,  watermark: true  },
@@ -77,5 +65,6 @@ export const PLAN_LIMITS = {
 export function resolveDuration(requested, plan = "free") {
   const limit = PLAN_LIMITS[plan]?.maxSeconds ?? 5;
   const want = Number(requested) || 5;
-  return String(Math.min(want, limit) >= 10 ? 10 : 5);
+  const capped = Math.min(want, limit);
+  return capped >= 10 ? "10" : "5";
 }
