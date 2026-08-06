@@ -128,7 +128,11 @@ export default function MyPage() {
                 </div>
               ))}
             </div>
-            <button style={{ width: "100%", padding: "13px", borderRadius: "12px", border: "1.5px solid #fecaca", background: "#fef2f2", color: "#ef4444", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
+            <button onClick={() => {
+                sessionStorage.clear();
+                window.scrollTo(0, 0);
+                navigate("/login");
+              }} style={{ width: "100%", padding: "13px", borderRadius: "12px", border: "1.5px solid #fecaca", background: "#fef2f2", color: "#ef4444", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
               ログアウト
             </button>
           </div>
