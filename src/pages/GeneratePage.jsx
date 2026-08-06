@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import CaptionOverlay from "../components/CaptionOverlay.jsx";
 
 const PLATFORMS = [
   { id: "tiktok",    label: "TikTok",    icon: "🎵", accent: "#fe2c55", bg: "#fff0f3" },
@@ -7,6 +8,13 @@ const PLATFORMS = [
   { id: "x",         label: "X",         icon: "𝕏",  accent: "#1d9bf0", bg: "#f0f8ff" },
   { id: "note",      label: "note",      icon: "📝", accent: "#41c9b4", bg: "#f0fdfb" },
 ];
+
+const ROLE_META = {
+  hook:  { label: "引き",   color: "#2563eb", bg: "#eff6ff" },
+  punch: { label: "主役",   color: "#f97316", bg: "#fff7ed" },
+  info:  { label: "補足",   color: "#6b7280", bg: "#f3f4f6" },
+  cta:   { label: "行動",   color: "#059669", bg: "#ecfdf5" },
+};
 
 const DUMMY_TEXTS = {
   tiktok: `【冒頭フック】
@@ -280,10 +288,18 @@ export default function GeneratePage() {
   const [klingPrompt, setKlingPrompt] = useState("");    // 生成に使った英語プロンプト
   const [videoElapsed, setVideoElapsed] = useState(0);   // 動画生成の経過秒数
 
+  // テロップ
+  const [captions, setCaptions] = useState([]);
+  const [showCaptions, setShowCaptions] = useState(true);
+  const [captionsLoading, setCaptionsLoading] = useState(false);
+  const [videoTime, setVideoTime] = useState(0);
+  const videoRef = useRef(null);
+
   // setStateの反映を待たずに最新値を参照するためのref
   const generatedTextsRef = useRef({});
   const videoUrlRef = useRef(null);
   const klingPromptRef = useRef("");
+  const captionsRef = useRef([]);
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -312,7 +328,7 @@ export default function GeneratePage() {
     "投稿文を生成中",
     "動画プロンプトを生成中",
     "オリジナル動画を生成中",
-    "仕上げ処理中",
+    "テロップを設計中",
   ];
 
   const toggle = (id) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
@@ -380,9 +396,12 @@ export default function GeneratePage() {
     setVideoUrl(null);
     setVideoError(null);
     setVideoElapsed(0);
+    setCaptions([]);
+    setVideoTime(0);
     videoUrlRef.current = null;
     generatedTextsRef.current = {};
     klingPromptRef.current = "";
+    captionsRef.current = [];
 
     const wait = ms => new Promise(r => setTimeout(r, ms));
     const imagePayload = uploadedImages.map(img => ({ base64: img.base64, mediaType: img.mediaType }));
@@ -459,9 +478,29 @@ export default function GeneratePage() {
       }
     }
 
-    // ── STEP 4: 仕上げ処理中 ──
+    // ── STEP 4: 仕上げ処理中（テロップを設計） ──
     setLoadStep(4);
-    await wait(500);
+    try {
+      const res = await fetch("/api/generate-captions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: PROJECT,
+          neta,
+          duration: DURATION_SECONDS[duration] || 5,
+        }),
+      });
+      const data = await res.json();
+      if (data.captions?.length) {
+        setCaptions(data.captions);
+        captionsRef.current = data.captions;
+      } else {
+        console.error("captions error:", data.error);
+      }
+    } catch (err) {
+      console.error("captions fetch error:", err);
+    }
+    await wait(300);
 
     setPhase("result");
     setActiveTab(selected[0]);
@@ -487,6 +526,7 @@ export default function GeneratePage() {
         videoUrl: finalVideo || null,
         videoThumb: finalVideo || null,
         klingPrompt: klingPromptRef.current || "",
+        captions: captionsRef.current || [],
         postTexts: finalTexts || {},
         postText: finalTexts?.[selected[0]] || "",
       };
@@ -498,6 +538,46 @@ export default function GeneratePage() {
         });
       } catch {}
     }
+  };
+
+  const seekTo = (t) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = t + 0.05;
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
+  const updateCaptionText = (index, text) => {
+    setCaptions(prev => {
+      const next = prev.map((c, i) => i === index ? { ...c, text: text.slice(0, 40) } : c);
+      captionsRef.current = next;
+      return next;
+    });
+  };
+
+  const regenerateCaptions = async () => {
+    setCaptionsLoading(true);
+    try {
+      const res = await fetch("/api/generate-captions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: PROJECT,
+          neta,
+          duration: DURATION_SECONDS[duration] || 5,
+        }),
+      });
+      const data = await res.json();
+      if (data.captions?.length) {
+        setCaptions(data.captions);
+        captionsRef.current = data.captions;
+      } else {
+        console.error("captions error:", data.error);
+      }
+    } catch (err) {
+      console.error("captions fetch error:", err);
+    }
+    setCaptionsLoading(false);
   };
 
   const handleCopy = () => {
@@ -800,17 +880,29 @@ export default function GeneratePage() {
                   borderRadius: "12px", overflow: "hidden", flexShrink: 0,
                   boxShadow: `0 6px 24px ${currentPlatform.accent}33`,
                   border: `2px solid ${currentPlatform.accent}44`,
-                  position: "relative", width: "135px", height: "240px",
+                  position: "relative", width: "168px", height: "299px",
                   background: "#000",
                 }}>
                   {videoUrl ? (
-                    <video
-                      src={videoUrl}
-                      controls
-                      loop
-                      playsInline
-                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                    />
+                    <>
+                      <video
+                        ref={videoRef}
+                        src={videoUrl}
+                        controls
+                        loop
+                        playsInline
+                        onTimeUpdate={e => setVideoTime(e.target.currentTime)}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      />
+                      {showCaptions && (
+                        <CaptionOverlay
+                          captions={captions}
+                          currentTime={videoTime}
+                          width={168}
+                          accent={currentPlatform.accent}
+                        />
+                      )}
+                    </>
                   ) : (
                     <>
                       <VideoCanvas platform={activeTab} playing={videoPlaying} />
@@ -884,6 +976,88 @@ export default function GeneratePage() {
                 </div>
               </div>
             </div>
+
+            {/* ── テロップ ── */}
+            {videoUrl && (
+              <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px", marginBottom: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 800, color: "#374151" }}>💬 テロップ</span>
+                  <span style={{ fontSize: "10px", color: "#9ca3af" }}>ネタに合わせてAIが設計</span>
+
+                  <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={showCaptions}
+                      onChange={e => setShowCaptions(e.target.checked)}
+                      style={{ accentColor: "#f97316", width: "14px", height: "14px" }}
+                    />
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: showCaptions ? "#f97316" : "#9ca3af" }}>
+                      表示
+                    </span>
+                  </label>
+                </div>
+
+                {captions.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "16px", background: "#f9fafb", borderRadius: "10px", border: "1px dashed #e5e7eb" }}>
+                    <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>テロップがまだありません</div>
+                    <button onClick={regenerateCaptions} disabled={captionsLoading} style={{
+                      fontSize: "11px", fontWeight: 700, padding: "6px 14px", borderRadius: "8px",
+                      border: "1px solid #f97316", background: captionsLoading ? "#f3f4f6" : "#fff7ed",
+                      color: captionsLoading ? "#9ca3af" : "#f97316", cursor: captionsLoading ? "default" : "pointer",
+                    }}>
+                      {captionsLoading ? "設計中..." : "✨ テロップを作る"}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {captions.map((cap, i) => {
+                        const roleMeta = ROLE_META[cap.role] || ROLE_META.info;
+                        return (
+                          <div key={cap.id} style={{
+                            display: "flex", alignItems: "center", gap: "8px",
+                            padding: "8px 10px", borderRadius: "10px",
+                            background: "#f8f9fb", border: "1px solid #f3f4f6",
+                          }}>
+                            <div style={{ fontSize: "9px", fontWeight: 700, color: "#9ca3af", width: "52px", flexShrink: 0 }}>
+                              {cap.start}〜{cap.end}s
+                            </div>
+                            <span style={{
+                              fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "20px",
+                              background: roleMeta.bg, color: roleMeta.color, flexShrink: 0, whiteSpace: "nowrap",
+                            }}>
+                              {roleMeta.label}
+                            </span>
+                            <input
+                              value={cap.text}
+                              onChange={e => updateCaptionText(i, e.target.value)}
+                              style={{
+                                flex: 1, minWidth: 0, padding: "5px 8px", borderRadius: "7px",
+                                border: "1px solid #e5e7eb", fontSize: "12px", fontFamily: "inherit",
+                                color: "#111827", outline: "none",
+                              }}
+                            />
+                            <button onClick={() => seekTo(cap.start)} title="ここから再生" style={{
+                              flexShrink: 0, width: "26px", height: "26px", borderRadius: "7px",
+                              border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: "10px",
+                            }}>▶</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <button onClick={regenerateCaptions} disabled={captionsLoading} style={{
+                      width: "100%", marginTop: "10px", padding: "9px", borderRadius: "10px",
+                      border: "1.5px solid #e5e7eb", background: "#fff",
+                      color: captionsLoading ? "#9ca3af" : "#374151",
+                      fontWeight: 700, fontSize: "12px", cursor: captionsLoading ? "default" : "pointer",
+                    }}>
+                      {captionsLoading ? "設計中..." : "↻ 別のパターンで作り直す"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* ── 投稿文 タブ（下部） ── */}
             <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", overflow: "hidden" }}>
