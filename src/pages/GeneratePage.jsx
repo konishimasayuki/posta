@@ -259,8 +259,16 @@ export default function GeneratePage() {
     pro:      10,
     business: 10,
   };
-  const durationLimit = PLAN_DURATION_LIMIT[USER_PLAN] ?? 5;
-  const DURATION_SECONDS = { short: 5, medium: 10, long: 10 };
+  const durationLimit = PLAN_DURATION_LIMIT[USER_PLAN] ?? 5; // 実際に生成できる秒数の上限（Kling基準）
+  // Klingは1回の生成で5秒か10秒しか作れない。
+  // 11秒以上は複数クリップの結合（Cloudinary導入後）が必要なため、現状はロック。
+  const DURATION_OPTIONS = [
+    { id: "xs",  label: "〜5秒",    seconds: 5,  klingSeconds: 5,  available: true  },
+    { id: "sm",  label: "6〜10秒",  seconds: 10, klingSeconds: 10, available: true  },
+    { id: "md",  label: "11〜20秒", seconds: 15, klingSeconds: 10, available: false },
+    { id: "lg",  label: "21〜30秒", seconds: 25, klingSeconds: 10, available: false },
+  ];
+  const DURATION_SECONDS = Object.fromEntries(DURATION_OPTIONS.map(d => [d.id, d.klingSeconds]));
 
   const PROJECT = savedProject || {
     id: 1, name: "カフェ Lumière", industry: "restaurant", color: "orange",
@@ -281,7 +289,8 @@ export default function GeneratePage() {
   const [copied, setCopied] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(true);
   const [downloaded, setDownloaded] = useState(false);
-  const [duration, setDuration] = useState("short");
+  const [duration, setDuration] = useState("xs");
+  const [generateVideo, setGenerateVideo] = useState(true); // 動画も作るかどうか
   const [netaTips, setNetaTips] = useState([]);
   const [netaTipsLoading, setNetaTipsLoading] = useState(false);
   const [netaError, setNetaError] = useState(null);
@@ -328,13 +337,9 @@ export default function GeneratePage() {
     setUploadedImages(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const LOAD_STEPS = [
-    "ブランド設定を読み込み中",
-    "投稿文を生成中",
-    "動画プロンプトを生成中",
-    "オリジナル動画を生成中",
-    "テロップを設計中",
-  ];
+  const LOAD_STEPS = generateVideo
+    ? ["ブランド設定を読み込み中", "投稿文を生成中", "動画プロンプトを生成中", "オリジナル動画を生成中", "テロップを設計中"]
+    : ["ブランド設定を読み込み中", "投稿文を生成中", "仕上げ処理中", "仕上げ処理中", "仕上げ処理中"];
 
   const toggle = (id) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
@@ -435,75 +440,84 @@ export default function GeneratePage() {
       console.error("generate-post fetch error:", err);
     }
 
-    // ── STEP 2: 動画プロンプトを生成中 ──
-    setLoadStep(2);
-    let prompt = "";
-    try {
-      const res = await fetch("/api/generate-kling-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project: PROJECT, input: neta, duration }),
-      });
-      const data = await res.json();
-      prompt = data.prompt || "";
-      setKlingPrompt(prompt);
-      klingPromptRef.current = prompt;
-    } catch (err) {
-      console.error("kling-prompt error:", err);
-    }
-
-    // ── STEP 3: オリジナル動画を生成中 ──
-    setLoadStep(3);
-    if (!prompt) {
-      setVideoError("動画プロンプトの生成に失敗しました");
-    } else {
+    if (generateVideo) {
+      // ── STEP 2: 動画プロンプトを生成中 ──
+      setLoadStep(2);
+      let prompt = "";
       try {
-        const startRes = await fetch("/api/generate-video", {
+        const res = await fetch("/api/generate-kling-prompt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ project: PROJECT, input: neta, duration }),
+        });
+        const data = await res.json();
+        prompt = data.prompt || "";
+        setKlingPrompt(prompt);
+        klingPromptRef.current = prompt;
+      } catch (err) {
+        console.error("kling-prompt error:", err);
+      }
+
+      // ── STEP 3: オリジナル動画を生成中 ──
+      setLoadStep(3);
+      if (!prompt) {
+        setVideoError("動画プロンプトの生成に失敗しました");
+      } else {
+        try {
+          const startRes = await fetch("/api/generate-video", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt,
+              image: imagePayload[0]?.base64 || null,
+              duration: DURATION_SECONDS[duration] || 5,
+              plan: USER_PLAN,
+              aspectRatio: "9:16",
+            }),
+          });
+          const startData = await startRes.json();
+
+          if (!startRes.ok || !startData.taskId) {
+            throw new Error(startData.error || "動画生成を開始できませんでした");
+          }
+          const url = await pollVideo(startData.taskId, startData.mode);
+          setVideoUrl(url);
+          videoUrlRef.current = url;
+        } catch (err) {
+          console.error("video error:", err);
+          setVideoError(err.message || "動画生成に失敗しました");
+        }
+      }
+
+      // ── STEP 4: 仕上げ処理中（テロップを設計） ──
+      setLoadStep(4);
+      try {
+        const res = await fetch("/api/generate-captions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            prompt,
-            image: imagePayload[0]?.base64 || null,
+            project: PROJECT,
+            neta,
             duration: DURATION_SECONDS[duration] || 5,
-            plan: USER_PLAN,
-            aspectRatio: "9:16",
           }),
         });
-        const startData = await startRes.json();
-
-        if (!startRes.ok || !startData.taskId) {
-          throw new Error(startData.error || "動画生成を開始できませんでした");
+        const data = await res.json();
+        if (data.captions?.length) {
+          setCaptions(data.captions);
+          captionsRef.current = data.captions;
+        } else {
+          console.error("captions error:", data.error);
         }
-        const url = await pollVideo(startData.taskId, startData.mode);
-        setVideoUrl(url);
-        videoUrlRef.current = url;
       } catch (err) {
-        console.error("video error:", err);
-        setVideoError(err.message || "動画生成に失敗しました");
+        console.error("captions fetch error:", err);
       }
-    }
-
-    // ── STEP 4: 仕上げ処理中（テロップを設計） ──
-    setLoadStep(4);
-    try {
-      const res = await fetch("/api/generate-captions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          project: PROJECT,
-          neta,
-          duration: DURATION_SECONDS[duration] || 5,
-        }),
-      });
-      const data = await res.json();
-      if (data.captions?.length) {
-        setCaptions(data.captions);
-        captionsRef.current = data.captions;
-      } else {
-        console.error("captions error:", data.error);
-      }
-    } catch (err) {
-      console.error("captions fetch error:", err);
+    } else {
+      // 動画を作らない場合はステップだけ進めて自然に見せる
+      setLoadStep(2);
+      await wait(300);
+      setLoadStep(3);
+      await wait(300);
+      setLoadStep(4);
     }
     await wait(300);
 
@@ -522,7 +536,7 @@ export default function GeneratePage() {
         projectName: PROJECT.name,
         projectColor: "#ea580c",
         projectIcon: "📁",
-        type: finalVideo ? "both" : "sns",
+        type: (generateVideo && finalVideo) ? "both" : "sns",
         platforms: selected,
         topic: neta || "AI生成",
         createdAt: new Date().toISOString(),
@@ -549,6 +563,43 @@ export default function GeneratePage() {
         });
       } catch {}
     }
+  };
+
+  // 動画を保存する。共有シートが使える環境（主にiPhone）ではそちらを優先し、
+  // 「写真に保存」までワンタップで届くようにする。使えない環境ではファイルとしてDLする。
+  const [saving, setSaving] = useState(false);
+  const handleSaveVideo = async (url) => {
+    if (!url || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("動画の取得に失敗しました");
+      const blob = await res.blob();
+      const fileName = `posta_${Date.now()}.mp4`;
+      const file = new File([blob], fileName, { type: blob.type || "video/mp4" });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        // iPhone等：共有シートから「動画を保存」を選べる
+        await navigator.share({ files: [file], title: "Posta" });
+      } else {
+        // PC等：そのままダウンロード開始
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+      }
+      setDownloaded(true);
+      setTimeout(() => setDownloaded(false), 2000);
+    } catch (err) {
+      console.error("save video error:", err);
+      // 取得できない場合（CORS等）は最終手段として新しいタブで開く
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+    setSaving(false);
   };
 
   const seekTo = (t) => {
@@ -796,44 +847,61 @@ export default function GeneratePage() {
               </div>
               {selected.length > 0 && (
                 <div style={{ marginTop: "10px", fontSize: "11px", color: "#9ca3af" }}>
-                  {selected.length}媒体を選択 · 動画と投稿文を同時に生成します
+                  {selected.length}媒体を選択
                 </div>
               )}
             </div>
 
-            {/* 動画の長さ */}
+            {/* 動画を作るかどうか */}
             <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px" }}>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "10px" }}>⏱ 動画の長さ</div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                {[
-                  { id: "short",  label: "ショート",     sub: "〜15秒",   desc: "Shorts/Reels向け", icon: "⚡", seconds: 15 },
-                  { id: "medium", label: "スタンダード",  sub: "30〜60秒", desc: "SNS標準",          icon: "▶",  seconds: 60 },
-                  { id: "long",   label: "ロング",        sub: "1〜3分",   desc: "解説・Vlog向け",  icon: "🎬", seconds: 180 },
-                ].map(d => {
-                  const locked = durationLimit === null || DURATION_SECONDS[d.id] > durationLimit;
-                  return (
-                  <div key={d.id} onClick={() => !locked && setDuration(d.id)} style={{
-                    flex: 1, padding: "12px 8px", borderRadius: "12px",
-                    cursor: locked ? "default" : "pointer", textAlign: "center",
-                    border: `1.5px solid ${locked ? "#e5e7eb" : duration === d.id ? "#f97316" : "#e5e7eb"}`,
-                    background: locked ? "#f9fafb" : duration === d.id ? "#fff7ed" : "#fff",
-                    opacity: locked ? 0.5 : 1,
-                    transition: "all 0.15s", position: "relative",
-                  }}>
-                    {locked && (
-                      <div style={{ position: "absolute", top: "4px", right: "4px", fontSize: "9px", fontWeight: 700, background: "#f3f4f6", color: "#9ca3af", padding: "1px 5px", borderRadius: "8px" }}>
-                        🔒
-                      </div>
-                    )}
-                    <div style={{ fontSize: "18px", marginBottom: "3px" }}>{d.icon}</div>
-                    <div style={{ fontSize: "11px", fontWeight: 800, color: locked ? "#9ca3af" : duration === d.id ? "#f97316" : "#111827" }}>{d.label}</div>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: locked ? "#9ca3af" : duration === d.id ? "#f97316" : "#374151", marginTop: "1px" }}>{d.sub}</div>
-                    <div style={{ fontSize: "9px", color: "#9ca3af", marginTop: "2px" }}>{locked ? "プランUPで利用可" : d.desc}</div>
+              <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={generateVideo}
+                  onChange={e => setGenerateVideo(e.target.checked)}
+                  style={{ width: "18px", height: "18px", accentColor: "#f97316" }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151" }}>🎬 動画も生成する</div>
+                  <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "2px" }}>
+                    オフにすると投稿文だけを生成します（動画のプラン消費なし）
                   </div>
-                  );
-                })}
-              </div>
+                </div>
+              </label>
             </div>
+
+            {/* 動画の長さ */}
+            {generateVideo && (
+              <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px" }}>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "10px" }}>⏱ 動画の長さ</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  {DURATION_OPTIONS.map(d => {
+                    const overPlan = durationLimit === null || d.klingSeconds > durationLimit;
+                    const locked = !d.available || overPlan;
+                    return (
+                    <div key={d.id} onClick={() => !locked && setDuration(d.id)} style={{
+                      padding: "12px 8px", borderRadius: "12px",
+                      cursor: locked ? "default" : "pointer", textAlign: "center",
+                      border: `1.5px solid ${locked ? "#e5e7eb" : duration === d.id ? "#f97316" : "#e5e7eb"}`,
+                      background: locked ? "#f9fafb" : duration === d.id ? "#fff7ed" : "#fff",
+                      opacity: locked ? 0.55 : 1,
+                      transition: "all 0.15s", position: "relative",
+                    }}>
+                      {locked && (
+                        <div style={{ position: "absolute", top: "4px", right: "4px", fontSize: "9px", fontWeight: 700, background: "#f3f4f6", color: "#9ca3af", padding: "1px 5px", borderRadius: "8px" }}>
+                          🔒
+                        </div>
+                      )}
+                      <div style={{ fontSize: "13px", fontWeight: 800, color: locked ? "#9ca3af" : duration === d.id ? "#f97316" : "#111827" }}>{d.label}</div>
+                      <div style={{ fontSize: "9px", color: "#9ca3af", marginTop: "3px" }}>
+                        {!d.available ? "近日対応" : overPlan ? "プランUPで利用可" : "選択できます"}
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* 生成ボタン */}
             <button onClick={handleGenerate} disabled={selected.length === 0}
@@ -949,21 +1017,18 @@ export default function GeneratePage() {
                   </div>
 
                   {videoUrl ? (
-                    <a
-                      href={videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
-                      onClick={() => { setDownloaded(true); setTimeout(() => setDownloaded(false), 2000); }}
+                    <button
+                      onClick={() => handleSaveVideo(videoUrl)}
+                      disabled={saving}
                       style={{
-                        display: "block", width: "100%", padding: "9px", borderRadius: "9px",
+                        display: "block", width: "100%", padding: "9px", borderRadius: "9px", border: "none",
                         background: downloaded ? "#10b981" : `linear-gradient(135deg, ${currentPlatform.accent}, ${currentPlatform.accent}cc)`,
                         color: "#fff", fontWeight: 700, fontSize: "11px", textAlign: "center",
-                        textDecoration: "none", transition: "all 0.2s",
+                        cursor: saving ? "default" : "pointer", transition: "all 0.2s",
                       }}
                     >
-                      {downloaded ? "✓ 開きました" : "⬇ 動画をDL"}
-                    </a>
+                      {saving ? "保存中..." : downloaded ? "✓ 保存しました" : "⬇ 動画を保存"}
+                    </button>
                   ) : (
                     <button disabled style={{
                       width: "100%", padding: "9px", borderRadius: "9px", border: "none",
