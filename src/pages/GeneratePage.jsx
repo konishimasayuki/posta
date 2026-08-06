@@ -532,6 +532,12 @@ export default function GeneratePage() {
         videoThumb: finalVideo || null,
         klingPrompt: klingPromptRef.current || "",
         captions: captionsRef.current || [],
+        brand: {
+          font:     PROJECT.font || "ai",
+          tone:     PROJECT.tone || "",
+          industry: PROJECT.industry || "",
+          color:    PROJECT.color || "orange",
+        },
         postTexts: finalTexts || {},
         postText: finalTexts?.[selected[0]] || "",
       };
