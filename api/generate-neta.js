@@ -1,58 +1,73 @@
 // POST /api/generate-neta
+// ブランド設定（＋任意で写真）から今日のネタ候補を生成する
 import Anthropic from "@anthropic-ai/sdk";
+import { describeProject, todayString } from "./_labels.js";
 
-const MODEL = "claude-sonnet-4-6";
+const MODEL = "claude-sonnet-4-6"; // モデル変更時はここだけ更新
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
-  const { project, images = [] } = req.body;
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  const today = new Date();
-  const days = ["日曜日","月曜日","火曜日","水曜日","木曜日","金曜日","土曜日"];
-  const months = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
-  const dateStr = `${months[today.getMonth()]}${today.getDate()}日（${days[today.getDay()]}）`;
+  const { project = {}, images = [] } = req.body || {};
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: "APIキーが設定されていません" });
+  }
+
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const brandInfo = describeProject(project);
+  const dateStr = todayString();
+
+  const hasImages = images.length > 0;
+
+  const instruction = `あなたはSNS・動画コンテンツの専門プランナーです。
+以下のブランド設定をもとに、今日${dateStr}のSNS投稿ネタ候補を4つ提案してください。
+
+【ブランド設定】
+${brandInfo}
+
+【条件】
+- 上記の業種・目的に完全に沿ったネタだけを出す
+- ブランド設定に存在しない商品・サービスを勝手に作らない
+- 今日の曜日・季節・日付を考慮して毎日違うネタにする
+- 「何を見せるか」「誰に向けて」「なぜ今日なのか」を含める
+- 各ネタは60〜100文字
+- 先頭に絵文字を1つつける
+${hasImages ? "- 添付された写真に実際に写っているものを必ず活かす。写真に無いものは書かない" : ""}
+
+JSONのみ出力（前後の説明・コードブロック不要）：
+{"tips":["...","...","...","..."]}`;
 
   try {
-    // 画像がある場合はVisionで読み取り
     const content = [];
 
-    if (images.length > 0) {
+    if (hasImages) {
       images.slice(0, 3).forEach(img => {
         content.push({
           type: "image",
           source: { type: "base64", media_type: img.mediaType, data: img.base64 },
         });
       });
-      content.push({
-        type: "text",
-        text: `上の写真を参考にして、今日${dateStr}、ブランド「${project.name}」（${project.industry}）向けのSNS投稿ネタ候補を4つ提案してください。
-目的：${project.purpose}、ターゲット：${project.targets?.join("・")}
-条件：写真の内容を具体的に活かす。今日の曜日・季節を考慮。各60〜100文字。絵文字1つ先頭。
-JSONのみ出力：{"tips":["...","...","...","..."]}`,
-      });
-    } else {
-      content.push({
-        type: "text",
-        text: `今日${dateStr}、ブランド「${project.name}」（${project.industry}）向けのSNS投稿ネタ候補を4つ提案してください。
-目的：${project.purpose}、ターゲット：${project.targets?.join("・")}
-動画スタイル：${project.videoStyle}
-条件：ブランドに存在しない設定は出さない。今日の曜日・季節を考慮。各60〜100文字。絵文字1つ先頭。
-JSONのみ出力：{"tips":["...","...","...","..."]}`,
-      });
     }
+    content.push({ type: "text", text: instruction });
 
     const message = await client.messages.create({
       model: MODEL,
-      max_tokens: 400,
+      max_tokens: 700,
       messages: [{ role: "user", content }],
     });
 
     const text = message.content.map(b => b.text || "").join("").trim();
-    const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
-    res.status(200).json(parsed);
+    const clean = text.replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(clean);
+
+    if (!parsed.tips || !Array.isArray(parsed.tips)) {
+      return res.status(500).json({ error: "生成結果の形式が不正です" });
+    }
+    return res.status(200).json({ tips: parsed.tips });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "生成に失敗しました" });
+    console.error("generate-neta error:", err);
+    return res.status(500).json({ error: err.message || "生成に失敗しました" });
   }
 }
