@@ -271,6 +271,7 @@ export default function GeneratePage() {
   const [duration, setDuration] = useState("short");
   const [netaTips, setNetaTips] = useState([]);
   const [netaTipsLoading, setNetaTipsLoading] = useState(false);
+  const [netaError, setNetaError] = useState(null);
   const [neta, setNeta] = useState("");
   const [generatedTexts, setGeneratedTexts] = useState({});
   const [uploadedImages, setUploadedImages] = useState([]); // {file, url, base64}
@@ -319,6 +320,7 @@ export default function GeneratePage() {
   // ネタ候補をAPI Route経由で生成（画像があればVisionで読み取り）
   const generateNetaTips = async () => {
     setNetaTipsLoading(true);
+    setNetaError(null);
     try {
       const res = await fetch("/api/generate-neta", {
         method: "POST",
@@ -331,13 +333,16 @@ export default function GeneratePage() {
       const data = await res.json();
       if (data.tips && data.tips.length > 0) {
         setNetaTips(data.tips);
+        setNetaError(null);
       } else {
-        console.error("neta API error:", data.error);
+        console.error("neta API error:", data.error, data.raw);
         setNetaTips([]);
+        setNetaError(data.error || "候補を生成できませんでした");
       }
     } catch (err) {
       console.error("neta fetch error:", err);
       setNetaTips([]);
+      setNetaError("通信エラーが発生しました");
     }
     setNetaTipsLoading(false);
   };
@@ -619,10 +624,27 @@ export default function GeneratePage() {
                   </button>
                 </div>
 
-                {netaTips.length === 0 && !netaTipsLoading && (
+                {netaTips.length === 0 && !netaTipsLoading && !netaError && (
                   <div style={{ textAlign: "center", padding: "16px", background: "#f9fafb", borderRadius: "10px", border: "1px dashed #e5e7eb" }}>
                     <div style={{ fontSize: "20px", marginBottom: "4px" }}>🤖</div>
                     <div style={{ fontSize: "11px", color: "#9ca3af" }}>「候補を生成」でAIがブランドに合ったネタを提案します</div>
+                  </div>
+                )}
+
+                {netaError && !netaTipsLoading && (
+                  <div style={{ padding: "12px 14px", background: "#fef2f2", borderRadius: "10px", border: "1px solid #fecaca" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#ef4444", marginBottom: "3px" }}>
+                      候補を生成できませんでした
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#b91c1c", lineHeight: 1.6, marginBottom: "8px" }}>
+                      {netaError}
+                    </div>
+                    <button onClick={generateNetaTips} style={{
+                      fontSize: "11px", fontWeight: 700, padding: "5px 12px", borderRadius: "8px",
+                      border: "1px solid #ef4444", background: "#fff", color: "#ef4444", cursor: "pointer",
+                    }}>
+                      もう一度試す
+                    </button>
                   </div>
                 )}
 
