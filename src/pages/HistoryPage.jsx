@@ -272,6 +272,16 @@ export default function HistoryPage() {
       .finally(() => setLoadingHistory(false));
   }, [userId, isDemo]);
 
+  if (loadingHistory) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#f8f9fb" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid #f3f4f6", borderTop: "3px solid #f97316", margin: "0 auto 12px" }} />
+        <div style={{ fontSize: "13px", color: "#9ca3af" }}>読み込み中...</div>
+        <style>{"@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }"}</style>
+      </div>
+    </div>
+  );
+
   const projects = [...new Set(items.map(h => h.projectName))];
   const filtered = filter === "all" ? items : items.filter(h => h.projectName === filter);
 
