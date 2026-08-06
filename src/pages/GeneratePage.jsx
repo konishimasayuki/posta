@@ -160,7 +160,8 @@ function VideoCanvas({ platform, playing }) {
 }
 
 // ─── ローディングアニメーション ──────────────────────
-function LoadingScreen({ steps, currentStep }) {
+function LoadingScreen({ steps, currentStep, elapsed = 0 }) {
+  const isVideoStep = currentStep === 3;
   return (
     <div style={{ padding: "32px 20px", textAlign: "center" }}>
       {/* スピナー */}
@@ -175,9 +176,20 @@ function LoadingScreen({ steps, currentStep }) {
       <div style={{ fontSize: "16px", fontWeight: 800, color: "#111827", marginBottom: "6px" }}>
         自動生成中...
       </div>
-      <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "28px" }}>
-        投稿文と動画を同時に生成しています
+      <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: isVideoStep ? "14px" : "28px" }}>
+        投稿文と動画を生成しています
       </div>
+
+      {isVideoStep && (
+        <div style={{ marginBottom: "24px", padding: "12px 14px", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "12px", maxWidth: "280px", margin: "0 auto 24px" }}>
+          <div style={{ fontSize: "12px", fontWeight: 700, color: "#c2410c", marginBottom: "3px" }}>
+            動画を生成しています（{Math.floor(elapsed / 60)}分{String(elapsed % 60).padStart(2, "0")}秒経過）
+          </div>
+          <div style={{ fontSize: "11px", color: "#9a3412", lineHeight: 1.6 }}>
+            完成まで1〜3分ほどかかります。<br />このまま画面を開いたままお待ちください。
+          </div>
+        </div>
+      )}
 
       {/* ステップ */}
       <div style={{ display: "flex", flexDirection: "column", gap: "10px", textAlign: "left", maxWidth: "280px", margin: "0 auto" }}>
@@ -225,15 +237,21 @@ export default function GeneratePage() {
   const savedProject = (() => {
     try { return JSON.parse(sessionStorage.getItem("posta_project")); } catch { return null; }
   })();
-  // プランによる動画尺の制限
-  const USER_PLAN = "pro"; // TODO: 実際はログインユーザーのプランを参照
+  // ログインユーザー（プラン判定に使う。最終判定はサーバー側で行う）
+  const currentUser = (() => {
+    try { return JSON.parse(sessionStorage.getItem("posta_user")); } catch { return null; }
+  })();
+  const USER_PLAN = currentUser?.plan || "free";
+
+  // プランごとの動画尺の上限（秒）
   const PLAN_DURATION_LIMIT = {
-    starter: null,    // 動画生成不可
-    pro:     60,      // 最大60秒
-    business: 180,    // 最大3分
+    free:     5,
+    starter:  5,
+    pro:      10,
+    business: 10,
   };
-  const durationLimit = PLAN_DURATION_LIMIT[USER_PLAN];
-  const DURATION_SECONDS = { short: 15, medium: 60, long: 180 };
+  const durationLimit = PLAN_DURATION_LIMIT[USER_PLAN] ?? 5;
+  const DURATION_SECONDS = { short: 5, medium: 10, long: 10 };
 
   const PROJECT = savedProject || {
     id: 1, name: "カフェ Lumière", industry: "restaurant", color: "orange",
@@ -256,6 +274,10 @@ export default function GeneratePage() {
   const [neta, setNeta] = useState("");
   const [generatedTexts, setGeneratedTexts] = useState({});
   const [uploadedImages, setUploadedImages] = useState([]); // {file, url, base64}
+  const [videoUrl, setVideoUrl] = useState(null);        // 完成した動画のURL
+  const [videoError, setVideoError] = useState(null);    // 動画生成の失敗理由
+  const [klingPrompt, setKlingPrompt] = useState("");    // 生成に使った英語プロンプト
+  const [videoElapsed, setVideoElapsed] = useState(0);   // 動画生成の経過秒数
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -315,75 +337,144 @@ export default function GeneratePage() {
     setNetaTipsLoading(false);
   };
 
-  const handleGenerate = () => {
+  // ステータスを数秒おきに確認して動画の完成を待つ
+  const pollVideo = async (taskId, mode) => {
+    const INTERVAL = 5000;   // 5秒おき
+    const MAX_TRIES = 72;    // 最大6分
+    let consecutiveErrors = 0;
+
+    for (let i = 0; i < MAX_TRIES; i++) {
+      await new Promise(r => setTimeout(r, INTERVAL));
+      setVideoElapsed((i + 1) * (INTERVAL / 1000));
+
+      try {
+        const res = await fetch(`/api/video-status?taskId=${encodeURIComponent(taskId)}&mode=${mode}`);
+        const data = await res.json();
+
+        if (data.status === "succeed") return data.videoUrl;
+        if (data.status === "failed") throw new Error(data.error || "動画生成に失敗しました");
+        consecutiveErrors = 0;
+      } catch (err) {
+        consecutiveErrors++;
+        console.error("poll error:", err);
+        // 通信エラーが3回続いたら諦める
+        if (consecutiveErrors >= 3) throw err;
+      }
+    }
+    throw new Error("動画の生成に時間がかかりすぎています。しばらくしてから再度お試しください");
+  };
+
+  const handleGenerate = async () => {
     setPhase("loading");
     setLoadStep(0);
-    let step = 0;
-    const delays = [800, 1200, 800, 2000, 600];
-    const next = () => {
-      step++;
-      setLoadStep(step);
-      if (step < LOAD_STEPS.length) {
-        setTimeout(next, delays[step]);
-      } else {
-        setTimeout(async () => {
-          // 投稿文をAPI経由で生成
-          try {
-            const res = await fetch("/api/generate-post", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                project: PROJECT,
-                input: neta,
-                platforms: selected,
-                topic: neta || "今日のネタ",
-                images: uploadedImages.map(img => ({ base64: img.base64, mediaType: img.mediaType })),
-              }),
-            });
-            const data = await res.json();
-            if (data.results) {
-              setGeneratedTexts(data.results);
-            } else if (data.error) {
-              console.error("API error:", data.error);
-            }
-          } catch (err) {
-            console.error("fetch error:", err);
-          }
+    setVideoUrl(null);
+    setVideoError(null);
+    setVideoElapsed(0);
 
-          setPhase("result");
-          setActiveTab(selected[0]);
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const imagePayload = uploadedImages.map(img => ({ base64: img.base64, mediaType: img.mediaType }));
 
-          // 履歴をRedisに保存
-          const currentUser = (() => {
-            try { return JSON.parse(sessionStorage.getItem("posta_user")); } catch { return null; }
-          })();
-          if (currentUser && currentUser.role !== "demo") {
-            const historyItem = {
-              id: Date.now(),
-              projectName: PROJECT.name,
-              projectColor: "#ea580c",
-              projectIcon: "📁",
-              type: "both",
-              platforms: selected,
-              topic: neta || "AI生成",
-              createdAt: new Date().toISOString(),
-              time: "たった今",
-              duration: duration,
-              videoThumb: null,
-              postText: "",
-            };
-            try {
-              await fetch("/api/history", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId: currentUser.id, item: historyItem }),
-              });
-            } catch {}
-          }
-        }, 500);
+    // ── STEP 0: ブランド設定を読み込み中 ──
+    await wait(600);
+
+    // ── STEP 1: 投稿文を生成中 ──
+    setLoadStep(1);
+    try {
+      const res = await fetch("/api/generate-post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: PROJECT,
+          input: neta,
+          platforms: selected,
+          topic: neta || "今日のネタ",
+          images: imagePayload,
+        }),
+      });
+      const data = await res.json();
+      if (data.results) setGeneratedTexts(data.results);
+      else console.error("generate-post error:", data.error);
+    } catch (err) {
+      console.error("generate-post fetch error:", err);
+    }
+
+    // ── STEP 2: 動画プロンプトを生成中 ──
+    setLoadStep(2);
+    let prompt = "";
+    try {
+      const res = await fetch("/api/generate-kling-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project: PROJECT, input: neta, duration }),
+      });
+      const data = await res.json();
+      prompt = data.prompt || "";
+      setKlingPrompt(prompt);
+    } catch (err) {
+      console.error("kling-prompt error:", err);
+    }
+
+    // ── STEP 3: オリジナル動画を生成中 ──
+    setLoadStep(3);
+    if (!prompt) {
+      setVideoError("動画プロンプトの生成に失敗しました");
+    } else {
+      try {
+        const startRes = await fetch("/api/generate-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            image: imagePayload[0]?.base64 || null,
+            duration: DURATION_SECONDS[duration] || 5,
+            plan: USER_PLAN,
+            aspectRatio: "9:16",
+          }),
+        });
+        const startData = await startRes.json();
+
+        if (!startRes.ok || !startData.taskId) {
+          throw new Error(startData.error || "動画生成を開始できませんでした");
+        }
+        const url = await pollVideo(startData.taskId, startData.mode);
+        setVideoUrl(url);
+      } catch (err) {
+        console.error("video error:", err);
+        setVideoError(err.message || "動画生成に失敗しました");
       }
-    };
-    setTimeout(next, delays[0]);
+    }
+
+    // ── STEP 4: 仕上げ処理中 ──
+    setLoadStep(4);
+    await wait(500);
+
+    setPhase("result");
+    setActiveTab(selected[0]);
+
+    // ── 履歴を保存 ──
+    if (currentUser?.id) {
+      const historyItem = {
+        id: Date.now(),
+        projectName: PROJECT.name,
+        projectColor: "#ea580c",
+        projectIcon: "📁",
+        type: "both",
+        platforms: selected,
+        topic: neta || "AI生成",
+        createdAt: new Date().toISOString(),
+        time: "たった今",
+        duration,
+        videoThumb: null,
+        postText: "",
+      };
+      try {
+        await fetch("/api/history", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: currentUser.id, item: historyItem }),
+        });
+      } catch {}
+    }
   };
 
   const handleCopy = () => {
@@ -631,7 +722,7 @@ export default function GeneratePage() {
         {/* ── LOADING ── */}
         {phase === "loading" && (
           <div style={{ background: "#fff", borderRadius: "20px", border: "1px solid #e5e7eb", marginTop: "20px" }}>
-            <LoadingScreen steps={LOAD_STEPS} currentStep={loadStep} />
+            <LoadingScreen steps={LOAD_STEPS} currentStep={loadStep} elapsed={videoElapsed} />
           </div>
         )}
 
@@ -648,30 +739,51 @@ export default function GeneratePage() {
                 🎬 生成された動画
                 <span style={{ fontSize: "10px", fontWeight: 400, color: "#9ca3af" }}>· Posta AI · 9:16</span>
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}>
-                  <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", animation: "pulse 2s infinite" }} />
-                  <span style={{ fontSize: "10px", color: "#10b981", fontWeight: 700 }}>生成完了</span>
+                  <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: videoUrl ? "#10b981" : "#f59e0b" }} />
+                  <span style={{ fontSize: "10px", color: videoUrl ? "#10b981" : "#f59e0b", fontWeight: 700 }}>
+                    {videoUrl ? "生成完了" : "デモ表示"}
+                  </span>
                 </div>
               </div>
 
+              {/* 動画生成に失敗した場合のお知らせ */}
+              {videoError && (
+                <div style={{ marginBottom: "12px", padding: "10px 12px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", fontSize: "11px", color: "#92400e", lineHeight: 1.7 }}>
+                  ⚠️ 動画の生成に失敗したため、デモ映像を表示しています<br />
+                  <span style={{ color: "#b45309", fontSize: "10px" }}>{videoError}</span>
+                </div>
+              )}
+
               {/* 動画プレビュー + DLボタン */}
               <div style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
-                {/* Canvas動画 */}
                 <div style={{
                   borderRadius: "12px", overflow: "hidden", flexShrink: 0,
                   boxShadow: `0 6px 24px ${currentPlatform.accent}33`,
                   border: `2px solid ${currentPlatform.accent}44`,
-                  position: "relative",
+                  position: "relative", width: "135px", height: "240px",
+                  background: "#000",
                 }}>
-                  <VideoCanvas platform={activeTab} playing={videoPlaying} />
-                  {/* 再生ボタン */}
-                  <button onClick={() => setVideoPlaying(p => !p)} style={{
-                    position: "absolute", bottom: "8px", left: "50%", transform: "translateX(-50%)",
-                    background: "rgba(0,0,0,0.6)", color: "#fff", border: "none",
-                    borderRadius: "20px", padding: "4px 10px", fontSize: "10px",
-                    fontWeight: 700, cursor: "pointer", backdropFilter: "blur(4px)",
-                  }}>
-                    {videoPlaying ? "⏸" : "▶"} {videoPlaying ? "停止" : "再生"}
-                  </button>
+                  {videoUrl ? (
+                    <video
+                      src={videoUrl}
+                      controls
+                      loop
+                      playsInline
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                  ) : (
+                    <>
+                      <VideoCanvas platform={activeTab} playing={videoPlaying} />
+                      <button onClick={() => setVideoPlaying(p => !p)} style={{
+                        position: "absolute", bottom: "8px", left: "50%", transform: "translateX(-50%)",
+                        background: "rgba(0,0,0,0.6)", color: "#fff", border: "none",
+                        borderRadius: "20px", padding: "4px 10px", fontSize: "10px",
+                        fontWeight: 700, cursor: "pointer",
+                      }}>
+                        {videoPlaying ? "⏸" : "▶"} {videoPlaying ? "停止" : "再生"}
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* 動画情報 + DL */}
@@ -680,30 +792,55 @@ export default function GeneratePage() {
                     {currentPlatform.icon} {currentPlatform.label}用
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: "12px" }}>
-                    {[["サイズ", "1080×1920"], ["形式", "MP4 / H.264"], ["尺", "約30秒"], ["比率", "9:16"]].map(([k, v]) => (
+                    {[
+                      ["形式", "MP4"],
+                      ["尺", `約${DURATION_SECONDS[duration] || 5}秒`],
+                      ["比率", "9:16"],
+                    ].map(([k, v]) => (
                       <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
                         <span style={{ color: "#9ca3af" }}>{k}</span>
                         <span style={{ fontWeight: 700, color: "#374151" }}>{v}</span>
                       </div>
                     ))}
                   </div>
-                  <button onClick={() => { setDownloaded(true); setTimeout(() => setDownloaded(false), 2000); }} style={{
-                    width: "100%", padding: "9px", borderRadius: "9px", border: "none",
-                    background: downloaded ? "#10b981" : `linear-gradient(135deg, ${currentPlatform.accent}, ${currentPlatform.accent}cc)`,
-                    color: "#fff", fontWeight: 700, fontSize: "11px", cursor: "pointer", transition: "all 0.2s",
-                  }}>
-                    {downloaded ? "✓ DL完了" : "⬇ 動画をDL"}
-                  </button>
 
-                  {/* 他のSNS用サイズDL */}
-                  <div style={{ marginTop: "8px" }}>
-                    <div style={{ fontSize: "10px", color: "#9ca3af", marginBottom: "5px" }}>他サイズで出力</div>
-                    {[["1:1", "Instagram投稿"], ["16:9", "YouTube・X"]].map(([ratio, label]) => (
-                      <button key={ratio} style={{ width: "100%", marginBottom: "4px", padding: "6px", borderRadius: "8px", border: "1px solid #e5e7eb", background: "#f9fafb", color: "#374151", fontSize: "10px", fontWeight: 600, cursor: "pointer", textAlign: "left" }}>
-                        {ratio} — {label}
-                      </button>
-                    ))}
-                  </div>
+                  {videoUrl ? (
+                    <a
+                      href={videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      onClick={() => { setDownloaded(true); setTimeout(() => setDownloaded(false), 2000); }}
+                      style={{
+                        display: "block", width: "100%", padding: "9px", borderRadius: "9px",
+                        background: downloaded ? "#10b981" : `linear-gradient(135deg, ${currentPlatform.accent}, ${currentPlatform.accent}cc)`,
+                        color: "#fff", fontWeight: 700, fontSize: "11px", textAlign: "center",
+                        textDecoration: "none", transition: "all 0.2s",
+                      }}
+                    >
+                      {downloaded ? "✓ 開きました" : "⬇ 動画をDL"}
+                    </a>
+                  ) : (
+                    <button disabled style={{
+                      width: "100%", padding: "9px", borderRadius: "9px", border: "none",
+                      background: "#e5e7eb", color: "#9ca3af",
+                      fontWeight: 700, fontSize: "11px", cursor: "default",
+                    }}>
+                      動画がありません
+                    </button>
+                  )}
+
+                  {/* 使用したプロンプト */}
+                  {klingPrompt && (
+                    <details style={{ marginTop: "8px" }}>
+                      <summary style={{ fontSize: "10px", color: "#9ca3af", cursor: "pointer" }}>
+                        使用したプロンプト
+                      </summary>
+                      <div style={{ marginTop: "5px", padding: "8px", background: "#f8f9fb", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "9px", color: "#6b7280", lineHeight: 1.6, wordBreak: "break-word" }}>
+                        {klingPrompt}
+                      </div>
+                    </details>
+                  )}
                 </div>
               </div>
             </div>
