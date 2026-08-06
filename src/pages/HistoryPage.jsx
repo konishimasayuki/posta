@@ -251,10 +251,26 @@ export default function HistoryPage() {
     try { return JSON.parse(sessionStorage.getItem("posta_user")); } catch { return null; }
   })();
   const isDemo = currentUser?.role === "demo";
-  const items = isDemo ? HISTORY : [];
+  const userId = currentUser?.id || "guest";
 
+  const [items, setItems] = useState(isDemo ? HISTORY : []);
+  const [loadingHistory, setLoadingHistory] = useState(!isDemo);
   const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState(null);
+
+  useEffect(() => {
+    if (isDemo) return;
+    fetch(`/api/history?userId=${encodeURIComponent(userId)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.history) {
+          const parsed = typeof data.history === "string" ? JSON.parse(data.history) : data.history;
+          setItems(parsed);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingHistory(false));
+  }, [userId, isDemo]);
 
   const projects = [...new Set(items.map(h => h.projectName))];
   const filtered = filter === "all" ? items : items.filter(h => h.projectName === filter);
