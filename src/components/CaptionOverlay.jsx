@@ -1,6 +1,8 @@
 // src/components/CaptionOverlay.jsx
-// 動画の上にテロップを重ねて表示する
-// 実際の焼き込み前に、見た目を確認するためのプレビュー
+// 動画の上にテロップを重ねて表示する（焼き込み前のプレビュー）
+
+import { useEffect } from "react";
+import { resolveFont, ensureFontLoaded } from "../lib/fonts.js";
 
 const SIZE_SCALE = {
   sm: 0.042,
@@ -10,16 +12,74 @@ const SIZE_SCALE = {
 };
 
 const POSITION_STYLE = {
-  top:    { top: "12%",  transform: "translateY(0)" },
-  center: { top: "50%",  transform: "translateY(-50%)" },
-  bottom: { bottom: "18%" },
+  top:    { top: "11%" },
+  center: { top: "50%" },
+  bottom: { bottom: "17%" },
 };
 
+// ── イージング ──────────────────────────
+const clamp01 = v => Math.max(0, Math.min(1, v));
+
+// 行き過ぎてから戻る（跳ねる感じ）
+function easeOutBack(t, overshoot = 1.5) {
+  const c3 = overshoot + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + overshoot * Math.pow(t - 1, 2);
+}
+
+// なめらかに減速
+function easeOutQuint(t) {
+  return 1 - Math.pow(1 - t, 5);
+}
+
 /**
- * テロップ1つ分の見た目を組み立てる
- * width は動画の実表示幅（px）。文字サイズを比率で決めるために使う
+ * 役割ごとに入り方を変える
+ * 戻り値: { opacity, transform, filter }
  */
-function captionStyle(cap, width, accent) {
+function enterMotion(role, p) {
+  switch (role) {
+    // 主役: 少し大きめから吸い込まれるように決まる
+    case "punch": {
+      const e = easeOutBack(p, 1.8);
+      const scale = 1.18 - 0.18 * e;
+      return {
+        opacity: clamp01(p * 2.2),
+        transform: `scale(${scale.toFixed(3)})`,
+        filter: p < 0.5 ? `blur(${(1 - p * 2) * 3}px)` : "none",
+      };
+    }
+    // 引き: 下からすっと上がる
+    case "hook": {
+      const e = easeOutQuint(p);
+      return {
+        opacity: clamp01(p * 1.8),
+        transform: `translateY(${((1 - e) * 18).toFixed(2)}px)`,
+        filter: "none",
+      };
+    }
+    // 行動喚起: わずかに沈んでから出る
+    case "cta": {
+      const e = easeOutBack(p, 1.1);
+      const scale = 0.9 + 0.1 * e;
+      return {
+        opacity: clamp01(p * 2),
+        transform: `scale(${scale.toFixed(3)})`,
+        filter: "none",
+      };
+    }
+    // 補足: 静かにフェード
+    default: {
+      const e = easeOutQuint(p);
+      return {
+        opacity: clamp01(p * 1.6),
+        transform: `translateY(${((1 - e) * 8).toFixed(2)}px)`,
+        filter: "none",
+      };
+    }
+  }
+}
+
+/** テロップ1つ分の見た目 */
+function captionStyle(cap, width, accent, font) {
   const fontSize = Math.round(width * (SIZE_SCALE[cap.size] || SIZE_SCALE.md));
   const isPunch = cap.role === "punch";
 
@@ -28,16 +88,17 @@ function captionStyle(cap, width, accent) {
     left: "6%",
     right: "6%",
     textAlign: "center",
+    fontFamily: font.family,
     fontSize: `${fontSize}px`,
-    fontWeight: 900,
-    lineHeight: 1.35,
-    letterSpacing: isPunch ? "-0.02em" : "0.01em",
+    fontWeight: font.weight,
+    lineHeight: 1.32,
+    letterSpacing: isPunch ? "-0.01em" : font.tracking,
     color: "#fff",
-    // 縁取りで背景に負けないようにする
-    WebkitTextStroke: `${Math.max(1, fontSize * 0.055)}px rgba(0,0,0,0.55)`,
+    WebkitTextStroke: `${Math.max(1, fontSize * 0.05)}px rgba(0,0,0,0.5)`,
     paintOrder: "stroke fill",
-    textShadow: "0 2px 12px rgba(0,0,0,0.45)",
+    textShadow: "0 2px 14px rgba(0,0,0,0.4)",
     pointerEvents: "none",
+    willChange: "transform, opacity",
     ...POSITION_STYLE[cap.position],
   };
 
@@ -47,12 +108,11 @@ function captionStyle(cap, width, accent) {
       WebkitTextStroke: "0",
       textShadow: "none",
       background: accent,
-      color: "#fff",
-      padding: `${fontSize * 0.28}px ${fontSize * 0.5}px`,
-      borderRadius: `${fontSize * 0.32}px`,
-      left: "10%",
-      right: "10%",
-      boxShadow: "0 6px 24px rgba(0,0,0,0.3)",
+      padding: `${fontSize * 0.3}px ${fontSize * 0.55}px`,
+      borderRadius: `${fontSize * 0.35}px`,
+      left: "9%",
+      right: "9%",
+      boxShadow: `0 8px 28px ${accent}55`,
     };
   }
 
@@ -62,57 +122,72 @@ function captionStyle(cap, width, accent) {
       WebkitTextStroke: "0",
       textShadow: "none",
       color: "#111",
-      background: `linear-gradient(transparent 55%, ${accent}cc 55%)`,
-      display: "inline-block",
-      left: "8%",
-      right: "8%",
-      padding: `0 ${fontSize * 0.15}px`,
+      background: `linear-gradient(transparent 52%, ${accent} 52%)`,
+      left: "7%",
+      right: "7%",
+      padding: `0 ${fontSize * 0.2}px`,
     };
   }
 
   if (cap.emphasis === "underline") {
     return {
       ...base,
-      paddingBottom: `${fontSize * 0.18}px`,
-      borderBottom: `${Math.max(2, fontSize * 0.08)}px solid ${accent}`,
-      left: "12%",
-      right: "12%",
+      paddingBottom: `${fontSize * 0.2}px`,
+      borderBottom: `${Math.max(2, fontSize * 0.075)}px solid ${accent}`,
+      left: "11%",
+      right: "11%",
     };
   }
 
   return base;
 }
 
-export default function CaptionOverlay({ captions = [], currentTime = 0, width = 200, accent = "#f97316" }) {
+export default function CaptionOverlay({
+  captions = [],
+  currentTime = 0,
+  width = 200,
+  accent = "#f97316",
+  project = {},
+}) {
+  const font = resolveFont(project);
+
+  useEffect(() => { ensureFontLoaded(font); }, [font]);
+
   if (!captions.length) return null;
+
+  const ENTER = 0.34; // 出現にかける秒数
+  const EXIT  = 0.22; // 消えるのにかける秒数
 
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
       {captions.map(cap => {
-        const visible = currentTime >= cap.start && currentTime < cap.end;
-        if (!visible) return null;
+        if (currentTime < cap.start || currentTime >= cap.end) return null;
 
-        // 表示開始からの経過で出現アニメを付ける
         const age = currentTime - cap.start;
-        const appear = Math.min(1, age / 0.28);
-        const eased = 1 - Math.pow(1 - appear, 3);
+        const remain = cap.end - currentTime;
+
+        const enterP = clamp01(age / ENTER);
+        const motion = enterMotion(cap.role, enterP);
+
+        // 終わり際はふわっと消す
+        const exitP = clamp01(remain / EXIT);
+        const exitEase = easeOutQuint(exitP);
+
+        const style = captionStyle(cap, width, accent, font);
+        const isCenter = cap.position === "center";
 
         return (
           <div
             key={cap.id}
             style={{
-              ...captionStyle(cap, width, accent),
-              opacity: eased,
+              ...style,
+              opacity: motion.opacity * exitEase,
+              // centerのときは縦中央寄せの分を足す
+              transform: `${isCenter ? "translateY(-50%) " : ""}${motion.transform} translateY(${((1 - exitEase) * -6).toFixed(2)}px)`,
+              filter: motion.filter,
             }}
           >
-            <span
-              style={{
-                display: "inline-block",
-                transform: `translateY(${(1 - eased) * (cap.role === "punch" ? 14 : 8)}px) scale(${0.94 + eased * 0.06})`,
-              }}
-            >
-              {cap.text}
-            </span>
+            {cap.text}
           </div>
         );
       })}
