@@ -52,6 +52,7 @@ const DURATION_LABEL = { short: "〜15秒", medium: "30〜60秒", long: "1〜3�
 function VideoThumb({ color, small }) {
   const size = small ? 56 : 80;
   const isUrl = color && color.startsWith("http");
+  const isVideo = isUrl && /\.(mp4|webm|mov)(\?|$)/i.test(color);
   return (
     <div style={{
       width: `${size}px`, height: `${size * 16/9 * (small ? 1 : 0.8)}px`,
@@ -59,9 +60,11 @@ function VideoThumb({ color, small }) {
       background: isUrl ? "#f3f4f6" : `linear-gradient(135deg, ${color}dd, ${color}88)`,
       display: "flex", alignItems: "center", justifyContent: "center",
     }}>
-      {isUrl
-        ? <img src={color} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-        : <div style={{ fontSize: small ? "18px" : "24px" }}>🎬</div>
+      {isUrl && isVideo
+        ? <video src={color} muted playsInline preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        : isUrl
+          ? <img src={color} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          : <div style={{ fontSize: small ? "18px" : "24px" }}>🎬</div>
       }
       <div style={{
         position: "absolute", bottom: "4px", right: "4px",
@@ -77,7 +80,7 @@ function HistoryCard({ item, onDetail }) {
 
   const handleCopy = (e) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(item.postText);
+    navigator.clipboard.writeText(item.postTexts?.[item.platforms?.[0]] || item.postText || "");
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
@@ -111,13 +114,13 @@ function HistoryCard({ item, onDetail }) {
 
         {/* コンテンツ */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
-          {item.videoThumb && <VideoThumb color={item.videoThumb} small />}
+          {(item.videoUrl || item.videoThumb) && <VideoThumb color={item.videoUrl || item.videoThumb} small />}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: "12px", fontWeight: 700, color: "#111827", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {item.topic}
             </div>
             <div style={{ fontSize: "11px", color: "#6b7280", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-              {item.postText}
+              {item.postTexts?.[item.platforms?.[0]] || item.postText || ""}
             </div>
           </div>
         </div>
@@ -174,28 +177,51 @@ function DetailModal({ item, onClose }) {
 
         <div style={{ overflowY: "auto", padding: "16px 20px 24px" }}>
           {/* 動画 */}
-          {item.videoThumb && (
+          {(item.videoUrl || item.videoThumb) && (
             <div style={{ marginBottom: "16px" }}>
               <div style={{ fontSize: "12px", fontWeight: 800, color: "#374151", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
                 🎬 生成された動画
                 <span style={{ fontSize: "10px", fontWeight: 600, color: "#9ca3af" }}>· {DURATION_LABEL[item.duration]}</span>
               </div>
               <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                <VideoThumb color={item.videoThumb} />
+                {item.videoUrl ? (
+                  <video
+                    src={item.videoUrl}
+                    controls
+                    loop
+                    playsInline
+                    style={{ width: "80px", height: "142px", objectFit: "cover", borderRadius: "8px", background: "#000", flexShrink: 0 }}
+                  />
+                ) : (
+                  <VideoThumb color={item.videoThumb} />
+                )}
                 <div style={{ flex: 1 }}>
-                  {[["サイズ","1080×1920"],["形式","MP4"],["比率","9:16"]].map(([k,v]) => (
+                  {[["形式","MP4"],["比率","9:16"]].map(([k,v]) => (
                     <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "5px" }}>
                       <span style={{ color: "#9ca3af" }}>{k}</span>
                       <span style={{ fontWeight: 700, color: "#374151" }}>{v}</span>
                     </div>
                   ))}
-                  <button onClick={() => { setDownloaded(true); setTimeout(() => setDownloaded(false), 2000); }} style={{
-                    width: "100%", marginTop: "8px", padding: "9px", borderRadius: "9px", border: "none",
-                    background: downloaded ? "#10b981" : `linear-gradient(135deg, ${item.projectColor}, ${item.projectColor}cc)`,
-                    color: "#fff", fontWeight: 700, fontSize: "11px", cursor: "pointer",
-                  }}>
-                    {downloaded ? "✓ DL完了" : "⬇ 動画をDL"}
-                  </button>
+                  {item.videoUrl ? (
+                    <a
+                      href={item.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      onClick={() => { setDownloaded(true); setTimeout(() => setDownloaded(false), 2000); }}
+                      style={{
+                        display: "block", width: "100%", marginTop: "8px", padding: "9px", borderRadius: "9px",
+                        background: downloaded ? "#10b981" : `linear-gradient(135deg, ${item.projectColor}, ${item.projectColor}cc)`,
+                        color: "#fff", fontWeight: 700, fontSize: "11px", textAlign: "center", textDecoration: "none",
+                      }}
+                    >
+                      {downloaded ? "✓ 開きました" : "⬇ 動画をDL"}
+                    </a>
+                  ) : (
+                    <div style={{ marginTop: "8px", padding: "8px", borderRadius: "8px", background: "#f8f9fb", border: "1px solid #e5e7eb", fontSize: "10px", color: "#9ca3af", textAlign: "center", lineHeight: 1.6 }}>
+                      動画の保存期限が<br />切れています
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -225,7 +251,7 @@ function DetailModal({ item, onClose }) {
             <div style={{ background: currentP?.accent + "10", borderRadius: "12px", border: `1px solid ${currentP?.accent}22`, overflow: "hidden" }}>
               <div style={{ padding: "12px 14px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${currentP?.accent}22` }}>
                 <span style={{ fontSize: "12px", fontWeight: 700, color: "#374151" }}>{currentP?.icon} {currentP?.label}用</span>
-                <button onClick={() => { navigator.clipboard.writeText(item.postText); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{
+                <button onClick={() => { navigator.clipboard.writeText(item.postTexts?.[activeTab] || item.postText || ""); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{
                   padding: "5px 12px", borderRadius: "8px", border: "none",
                   background: copied ? "#10b981" : currentP?.accent, color: "#fff",
                   fontWeight: 700, fontSize: "11px", cursor: "pointer",
@@ -234,7 +260,7 @@ function DetailModal({ item, onClose }) {
                 </button>
               </div>
               <div style={{ padding: "12px 14px", fontSize: "12px", lineHeight: 1.9, color: "#374151", whiteSpace: "pre-wrap" }}>
-                {item.postText}
+                {item.postTexts?.[activeTab] || item.postText || "（投稿文が保存されていません）"}
               </div>
             </div>
           </div>
@@ -320,7 +346,7 @@ export default function HistoryPage() {
         {/* 統計 */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "16px" }}>
           {[
-            ["🎬", "動画", items.filter(h => h.videoThumb).length + "本"],
+            ["🎬", "動画", items.filter(h => h.videoUrl || h.videoThumb).length + "本"],
             ["📝", "投稿文", items.length + "件"],
             ["📅", "最終生成", "2時間前"],
           ].map(([icon, label, val]) => (
