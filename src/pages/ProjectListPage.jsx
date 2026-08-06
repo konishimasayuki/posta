@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 // ─── 定数 ─────────────────────────────────────────────
@@ -509,13 +509,41 @@ function ProjectList({ projects, onSelect, onNew, onEdit, isDemo }) {
 export default function ProjectListPage() {
   const navigate = useNavigate();
 
-  // デモユーザー判定
   const currentUser = (() => {
     try { return JSON.parse(sessionStorage.getItem("posta_user")); } catch { return null; }
   })();
   const isDemo = currentUser?.role === "demo";
+  const userId = currentUser?.id || "guest";
 
   const [projects, setProjects] = useState(isDemo ? SAMPLE_PROJECTS : []);
+  const [loading, setLoading] = useState(!isDemo);
+
+  // APIからプロジェクトを取得
+  useEffect(() => {
+    if (isDemo) return;
+    fetch(`/api/projects?userId=${encodeURIComponent(userId)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.projects) {
+          const parsed = typeof data.projects === "string" ? JSON.parse(data.projects) : data.projects;
+          setProjects(parsed);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [userId, isDemo]);
+
+  // プロジェクトをAPIに保存
+  const saveProjects = async (newProjects) => {
+    if (isDemo) return;
+    try {
+      await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, projects: JSON.stringify(newProjects) }),
+      });
+    } catch {}
+  };
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -527,14 +555,18 @@ export default function ProjectListPage() {
   };
 
   const handleSave = (data) => {
+    let newProjects;
     if (data.id) {
-      setProjects(ps => ps.map(p => p.id === data.id ? { ...p, ...data, lastEdit: "今" } : p));
+      newProjects = projects.map(p => p.id === data.id ? { ...p, ...data, lastEdit: "今" } : p);
+      setProjects(newProjects);
       showToast("ブランド設定を更新しました");
     } else {
       const newP = { ...data, id: Date.now(), posts: 0, lastEdit: "今" };
-      setProjects(ps => [...ps, newP]);
+      newProjects = [...projects, newP];
+      setProjects(newProjects);
       showToast("新規プロジェクトを作成しました");
     }
+    saveProjects(newProjects);
     setModal(null);
   };
 
@@ -542,6 +574,7 @@ export default function ProjectListPage() {
     <div style={{ minHeight: "100vh", background: "#f8f9fb", fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif", color: "#111827" }}>
       <Toast msg={toast} />
       <ProjectList projects={projects} onSelect={handleSelect} onNew={() => setModal("new")} onEdit={p => setModal(p)} isDemo={isDemo} />
+      )}
       {modal && <BrandModal project={modal === "new" ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
     </div>
   );
