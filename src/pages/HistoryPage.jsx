@@ -55,20 +55,38 @@ const DURATION_LABEL = { short: "〜15秒", medium: "30〜60秒", long: "1〜3�
 function VideoThumb({ color, small }) {
   const size = small ? 56 : 80;
   const isUrl = color && color.startsWith("http");
-  const isVideo = isUrl && /\.(mp4|webm|mov)(\?|$)/i.test(color);
+  // 拡張子だけでは動画か画像か判定できないURLがあるため、まず動画として試し、
+  // 失敗したら画像として再試行する（どちらでも壊れずに表示するため）
+  const [mode, setMode] = useState(isUrl ? "video" : "none");
+  const videoTagRef = useRef(null);
+
   return (
     <div style={{
       width: `${size}px`, height: `${size * 16/9 * (small ? 1 : 0.8)}px`,
       borderRadius: "8px", flexShrink: 0, position: "relative", overflow: "hidden",
-      background: isUrl ? "#f3f4f6" : `linear-gradient(135deg, ${color}dd, ${color}88)`,
+      background: isUrl ? "#111" : `linear-gradient(135deg, ${color}dd, ${color}88)`,
       display: "flex", alignItems: "center", justifyContent: "center",
     }}>
-      {isUrl && isVideo
-        ? <video src={color} muted playsInline preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-        : isUrl
-          ? <img src={color} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-          : <div style={{ fontSize: small ? "18px" : "24px" }}>🎬</div>
-      }
+      {mode === "video" && (
+        <video
+          ref={videoTagRef}
+          src={color}
+          muted
+          playsInline
+          preload="metadata"
+          // iOSは読み込んだだけだと真っ黒のままなので、わずかに再生位置をずらして
+          // 実際のコマを描画させる（サムネイル代わり）
+          onLoadedMetadata={e => { try { e.target.currentTime = Math.min(0.15, (e.target.duration || 1) / 2); } catch {} }}
+          onError={() => setMode("image")}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        />
+      )}
+      {mode === "image" && (
+        <img src={color} alt="" onError={() => setMode("none")} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      )}
+      {mode === "none" && (
+        <div style={{ fontSize: small ? "18px" : "24px" }}>🎬</div>
+      )}
       <div style={{
         position: "absolute", bottom: "4px", right: "4px",
         background: "rgba(0,0,0,0.6)", borderRadius: "4px",
@@ -165,7 +183,39 @@ function DetailModal({ item, onClose }) {
   const [downloaded, setDownloaded] = useState(false);
   const [videoTime, setVideoTime] = useState(0);
   const [showCaptions, setShowCaptions] = useState(true);
+  const [saving, setSaving] = useState(false);
   const videoRef = useRef(null);
+
+  const handleSaveVideo = async (url) => {
+    if (!url || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("動画の取得に失敗しました");
+      const blob = await res.blob();
+      const fileName = `posta_${Date.now()}.mp4`;
+      const file = new File([blob], fileName, { type: blob.type || "video/mp4" });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Posta" });
+      } else {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+      }
+      setDownloaded(true);
+      setTimeout(() => setDownloaded(false), 2000);
+    } catch (err) {
+      console.error("save video error:", err);
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+    setSaving(false);
+  };
   const currentP = PLATFORM_META[activeTab];
 
   return (
@@ -235,20 +285,18 @@ function DetailModal({ item, onClose }) {
                     </div>
                   ))}
                   {item.videoUrl ? (
-                    <a
-                      href={item.videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
-                      onClick={() => { setDownloaded(true); setTimeout(() => setDownloaded(false), 2000); }}
+                    <button
+                      onClick={() => handleSaveVideo(item.videoUrl)}
+                      disabled={saving}
                       style={{
-                        display: "block", width: "100%", marginTop: "8px", padding: "9px", borderRadius: "9px",
+                        display: "block", width: "100%", marginTop: "8px", padding: "9px", borderRadius: "9px", border: "none",
                         background: downloaded ? "#10b981" : `linear-gradient(135deg, ${item.projectColor}, ${item.projectColor}cc)`,
-                        color: "#fff", fontWeight: 700, fontSize: "11px", textAlign: "center", textDecoration: "none",
+                        color: "#fff", fontWeight: 700, fontSize: "11px", textAlign: "center",
+                        cursor: saving ? "default" : "pointer",
                       }}
                     >
-                      {downloaded ? "✓ 開きました" : "⬇ 動画をDL"}
-                    </a>
+                      {saving ? "保存中..." : downloaded ? "✓ 保存しました" : "⬇ 動画を保存"}
+                    </button>
                   ) : (
                     <div style={{ marginTop: "8px", padding: "8px", borderRadius: "8px", background: "#f8f9fb", border: "1px solid #e5e7eb", fontSize: "10px", color: "#9ca3af", textAlign: "center", lineHeight: 1.6 }}>
                       動画の保存期限が<br />切れています
