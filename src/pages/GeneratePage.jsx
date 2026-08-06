@@ -305,6 +305,10 @@ export default function GeneratePage() {
   // テロップ
   const [captions, setCaptions] = useState([]);
   const [showCaptions, setShowCaptions] = useState(true);
+  const [captionWords, setCaptionWords] = useState([]);   // ユーザーが指定した「テロップに入れたい言葉」
+  const [wordInput, setWordInput] = useState("");         // 入力欄の一時テキスト
+  const [wordCandidates, setWordCandidates] = useState([]); // AIが提案した言葉候補
+  const [wordCandidatesLoading, setWordCandidatesLoading] = useState(false);
   const [captionsLoading, setCaptionsLoading] = useState(false);
   const [videoTime, setVideoTime] = useState(0);
   const videoRef = useRef(null);
@@ -499,6 +503,7 @@ export default function GeneratePage() {
             project: PROJECT,
             neta,
             duration: DURATION_SECONDS[duration] || 5,
+            words: captionWords,
           }),
         });
         const data = await res.json();
@@ -617,6 +622,39 @@ export default function GeneratePage() {
     });
   };
 
+  const addCaptionWord = (word) => {
+    const trimmed = word.trim();
+    if (!trimmed) return;
+    if (captionWords.length >= 6) return; // 詰め込みすぎ防止
+    if (captionWords.includes(trimmed)) return;
+    setCaptionWords(prev => [...prev, trimmed]);
+    setWordInput("");
+  };
+
+  const removeCaptionWord = (index) => {
+    setCaptionWords(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const generateWordCandidates = async () => {
+    setWordCandidatesLoading(true);
+    try {
+      const res = await fetch("/api/generate-caption-words", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project: PROJECT, neta }),
+      });
+      const data = await res.json();
+      if (data.words?.length) {
+        setWordCandidates(data.words);
+      } else {
+        console.error("caption-words error:", data.error);
+      }
+    } catch (err) {
+      console.error("caption-words fetch error:", err);
+    }
+    setWordCandidatesLoading(false);
+  };
+
   const regenerateCaptions = async () => {
     setCaptionsLoading(true);
     try {
@@ -627,6 +665,7 @@ export default function GeneratePage() {
           project: PROJECT,
           neta,
           duration: DURATION_SECONDS[duration] || 5,
+          words: captionWords,
         }),
       });
       const data = await res.json();
@@ -869,6 +908,100 @@ export default function GeneratePage() {
                 </div>
               </label>
             </div>
+
+            {/* テロップに入れたい言葉 */}
+            {generateVideo && (
+              <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px" }}>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "4px" }}>
+                  💬 テロップに入れたい言葉 <span style={{ color: "#9ca3af", fontWeight: 400 }}>任意・最大6個</span>
+                </div>
+                <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "10px", lineHeight: 1.6 }}>
+                  指定した言葉は書き換えずにそのまま使います。表示する順番・タイミングはAIが判断します。
+                  空のままなら、ネタの内容からAIが自動で考えます。
+                </div>
+
+                {/* 追加済みの言葉 */}
+                {captionWords.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "10px" }}>
+                    {captionWords.map((w, i) => (
+                      <span key={i} style={{
+                        display: "flex", alignItems: "center", gap: "6px",
+                        padding: "6px 10px", borderRadius: "20px",
+                        background: "#fff7ed", border: "1px solid #fed7aa",
+                        fontSize: "12px", fontWeight: 700, color: "#c2410c",
+                      }}>
+                        {w}
+                        <button onClick={() => removeCaptionWord(i)} style={{
+                          border: "none", background: "none", cursor: "pointer",
+                          color: "#c2410c", fontSize: "13px", fontWeight: 900, padding: 0, lineHeight: 1,
+                        }}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* 直接入力 */}
+                {captionWords.length < 6 && (
+                  <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
+                    <input
+                      value={wordInput}
+                      onChange={e => setWordInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCaptionWord(wordInput); } }}
+                      placeholder="例：500円、今だけ、DMでご相談"
+                      maxLength={20}
+                      style={{
+                        flex: 1, padding: "9px 12px", borderRadius: "9px",
+                        border: "1.5px solid #e5e7eb", fontSize: "13px",
+                        outline: "none", fontFamily: "inherit", color: "#111827",
+                      }}
+                    />
+                    <button onClick={() => addCaptionWord(wordInput)} disabled={!wordInput.trim()} style={{
+                      padding: "0 16px", borderRadius: "9px", border: "none",
+                      background: wordInput.trim() ? "#f97316" : "#e5e7eb",
+                      color: wordInput.trim() ? "#fff" : "#9ca3af",
+                      fontWeight: 700, fontSize: "13px", cursor: wordInput.trim() ? "pointer" : "default",
+                    }}>
+                      追加
+                    </button>
+                  </div>
+                )}
+
+                {/* AI候補 */}
+                <button onClick={generateWordCandidates} disabled={wordCandidatesLoading} style={{
+                  fontSize: "11px", fontWeight: 700, padding: "5px 12px", borderRadius: "20px",
+                  border: "1px solid #f97316", background: wordCandidatesLoading ? "#f3f4f6" : "#fff7ed",
+                  color: wordCandidatesLoading ? "#9ca3af" : "#f97316",
+                  cursor: wordCandidatesLoading ? "default" : "pointer",
+                }}>
+                  {wordCandidatesLoading ? "考え中..." : "✨ AIに候補を出してもらう"}
+                </button>
+
+                {wordCandidates.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "10px" }}>
+                    {wordCandidates.map((w, i) => {
+                      const already = captionWords.includes(w);
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => !already && addCaptionWord(w)}
+                          disabled={already || captionWords.length >= 6}
+                          style={{
+                            padding: "6px 12px", borderRadius: "20px",
+                            border: `1.5px solid ${already ? "#e5e7eb" : "#f97316"}`,
+                            background: already ? "#f3f4f6" : "#fff",
+                            color: already ? "#9ca3af" : "#f97316",
+                            fontSize: "12px", fontWeight: 700,
+                            cursor: already ? "default" : "pointer",
+                          }}
+                        >
+                          {already ? "✓ " : "+ "}{w}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 動画の長さ */}
             {generateVideo && (
