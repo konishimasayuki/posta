@@ -254,28 +254,27 @@ export default function HistoryPage() {
   const userId = currentUser?.id || "guest";
 
   const [items, setItems] = useState(isDemo ? HISTORY : []);
-  const [loadingHistory, setLoadingHistory] = useState(!isDemo);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState(null);
 
   useEffect(() => {
-    if (isDemo) return;
     fetch(`/api/history?userId=${encodeURIComponent(userId)}`)
       .then(r => r.json())
       .then(data => {
         if (data.history) {
           const parsed = typeof data.history === "string" ? JSON.parse(data.history) : data.history;
-          setItems(parsed);
+          if (parsed.length > 0) setItems(parsed);
         }
       })
       .catch(() => {})
       .finally(() => setLoadingHistory(false));
-  }, [userId, isDemo]);
+  }, [userId]);
 
   if (loadingHistory) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#f8f9fb" }}>
       <div style={{ textAlign: "center" }}>
-        <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid #f3f4f6", borderTop: "3px solid #f97316", margin: "0 auto 12px" }} />
+        <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid #f3f4f6", borderTop: "3px solid #f97316", margin: "0 auto 12px", animation: "spin 0.8s linear infinite" }} />
         <div style={{ fontSize: "13px", color: "#9ca3af" }}>読み込み中...</div>
         <style>{"@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }"}</style>
       </div>
