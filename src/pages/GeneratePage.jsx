@@ -254,6 +254,7 @@ export default function GeneratePage() {
   const [netaTips, setNetaTips] = useState([]);
   const [netaTipsLoading, setNetaTipsLoading] = useState(false);
   const [neta, setNeta] = useState("");
+  const [generatedTexts, setGeneratedTexts] = useState({});
 
   const LOAD_STEPS = [
     "ブランド設定を読み込み中",
@@ -372,6 +373,24 @@ JSONのみ出力（前後の説明・バッククォート不要）：
         setTimeout(next, delays[step]);
       } else {
         setTimeout(async () => {
+          // 投稿文をAPI経由で生成
+          try {
+            const res = await fetch("/api/generate-post", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                project: PROJECT,
+                input: neta,
+                platforms: selected,
+                topic: neta || "今日のネタ",
+              }),
+            });
+            const data = await res.json();
+            if (data.results) {
+              setGeneratedTexts(data.results);
+            }
+          } catch {}
+
           setPhase("result");
           setActiveTab(selected[0]);
 
@@ -752,7 +771,7 @@ JSONのみ出力（前後の説明・バッククォート不要）：
 
               {/* 投稿文本文 */}
               <div style={{ padding: "14px 16px", fontSize: "12px", lineHeight: 1.9, color: "#374151", whiteSpace: "pre-wrap", maxHeight: "220px", overflowY: "auto" }}>
-                {DUMMY_TEXTS[activeTab]}
+                {generatedTexts[activeTab] || DUMMY_TEXTS[activeTab]}
               </div>
 
               {/* ページインジケーター */}
