@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import CaptionOverlay from "../components/CaptionOverlay.jsx";
+import { resolveAccent, resolveFont } from "../lib/fonts.js";
 
 const PLATFORMS = [
   { id: "tiktok",    label: "TikTok",    icon: "🎵", accent: "#fe2c55", bg: "#fff0f3" },
@@ -268,6 +269,10 @@ export default function GeneratePage() {
     purposeDetail: "近隣の30〜40代女性・ファミリー層に来店してもらう。",
     fixedWords: "Lumière、週末モーニング",
   };
+
+  // ブランド設定から色とフォントを引く
+  const brandAccent = resolveAccent(PROJECT);
+  const brandFont = resolveFont(PROJECT);
 
   const [selected, setSelected] = useState(["tiktok", "instagram"]);
   const [phase, setPhase] = useState("input");   // input | loading | result
@@ -899,7 +904,8 @@ export default function GeneratePage() {
                           captions={captions}
                           currentTime={videoTime}
                           width={168}
-                          accent={currentPlatform.accent}
+                          accent={brandAccent}
+                          project={PROJECT}
                         />
                       )}
                     </>
@@ -982,7 +988,10 @@ export default function GeneratePage() {
               <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px", marginBottom: "12px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
                   <span style={{ fontSize: "12px", fontWeight: 800, color: "#374151" }}>💬 テロップ</span>
-                  <span style={{ fontSize: "10px", color: "#9ca3af" }}>ネタに合わせてAIが設計</span>
+                  <span style={{ fontSize: "10px", color: "#9ca3af" }}>
+                    {brandFont.label}
+                    <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: brandAccent, marginLeft: "5px", verticalAlign: "middle" }} />
+                  </span>
 
                   <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
                     <input
