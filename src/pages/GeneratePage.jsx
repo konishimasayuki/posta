@@ -279,6 +279,11 @@ export default function GeneratePage() {
   const [klingPrompt, setKlingPrompt] = useState("");    // 生成に使った英語プロンプト
   const [videoElapsed, setVideoElapsed] = useState(0);   // 動画生成の経過秒数
 
+  // setStateの反映を待たずに最新値を参照するためのref
+  const generatedTextsRef = useRef({});
+  const videoUrlRef = useRef(null);
+  const klingPromptRef = useRef("");
+
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     const remaining = 5 - uploadedImages.length;
@@ -370,6 +375,9 @@ export default function GeneratePage() {
     setVideoUrl(null);
     setVideoError(null);
     setVideoElapsed(0);
+    videoUrlRef.current = null;
+    generatedTextsRef.current = {};
+    klingPromptRef.current = "";
 
     const wait = ms => new Promise(r => setTimeout(r, ms));
     const imagePayload = uploadedImages.map(img => ({ base64: img.base64, mediaType: img.mediaType }));
@@ -392,7 +400,7 @@ export default function GeneratePage() {
         }),
       });
       const data = await res.json();
-      if (data.results) setGeneratedTexts(data.results);
+      if (data.results) { setGeneratedTexts(data.results); generatedTextsRef.current = data.results; }
       else console.error("generate-post error:", data.error);
     } catch (err) {
       console.error("generate-post fetch error:", err);
@@ -410,6 +418,7 @@ export default function GeneratePage() {
       const data = await res.json();
       prompt = data.prompt || "";
       setKlingPrompt(prompt);
+      klingPromptRef.current = prompt;
     } catch (err) {
       console.error("kling-prompt error:", err);
     }
@@ -438,6 +447,7 @@ export default function GeneratePage() {
         }
         const url = await pollVideo(startData.taskId, startData.mode);
         setVideoUrl(url);
+        videoUrlRef.current = url;
       } catch (err) {
         console.error("video error:", err);
         setVideoError(err.message || "動画生成に失敗しました");
@@ -453,19 +463,27 @@ export default function GeneratePage() {
 
     // ── 履歴を保存 ──
     if (currentUser?.id) {
+      // この時点の生成結果を確実に拾う
+      const finalTexts = generatedTextsRef.current;
+      const finalVideo = videoUrlRef.current;
+
       const historyItem = {
         id: Date.now(),
+        projectId: PROJECT.id,
         projectName: PROJECT.name,
         projectColor: "#ea580c",
         projectIcon: "📁",
-        type: "both",
+        type: finalVideo ? "both" : "sns",
         platforms: selected,
         topic: neta || "AI生成",
         createdAt: new Date().toISOString(),
         time: "たった今",
         duration,
-        videoThumb: null,
-        postText: "",
+        videoUrl: finalVideo || null,
+        videoThumb: finalVideo || null,
+        klingPrompt: klingPromptRef.current || "",
+        postTexts: finalTexts || {},
+        postText: finalTexts?.[selected[0]] || "",
       };
       try {
         await fetch("/api/history", {
