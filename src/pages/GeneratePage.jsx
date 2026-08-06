@@ -371,9 +371,37 @@ JSONのみ出力（前後の説明・バッククォート不要）：
       if (step < LOAD_STEPS.length) {
         setTimeout(next, delays[step]);
       } else {
-        setTimeout(() => {
+        setTimeout(async () => {
           setPhase("result");
           setActiveTab(selected[0]);
+
+          // 履歴をRedisに保存
+          const currentUser = (() => {
+            try { return JSON.parse(sessionStorage.getItem("posta_user")); } catch { return null; }
+          })();
+          if (currentUser && currentUser.role !== "demo") {
+            const historyItem = {
+              id: Date.now(),
+              projectName: PROJECT.name,
+              projectColor: "#ea580c",
+              projectIcon: "📁",
+              type: "both",
+              platforms: selected,
+              topic: neta || "AI生成",
+              createdAt: new Date().toISOString(),
+              time: "たった今",
+              duration: duration,
+              videoThumb: null,
+              postText: "",
+            };
+            try {
+              await fetch("/api/history", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId: currentUser.id, item: historyItem }),
+              });
+            } catch {}
+          }
         }, 500);
       }
     };
