@@ -688,10 +688,10 @@ export default function GeneratePage() {
               </div>
             </div>
 
-            {/* 写真・動画素材 */}
+            {/* 写真素材 */}
             <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px" }}>
               <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>
-                📷 写真・動画素材
+                📷 写真素材
                 <span style={{ color: "#9ca3af", fontWeight: 400, marginLeft: "6px" }}>最大5枚・任意</span>
                 {uploadedImages.length > 0 && (
                   <span style={{ marginLeft: "6px", fontSize: "11px", color: "#f97316", fontWeight: 700 }}>{uploadedImages.length}枚選択中</span>
