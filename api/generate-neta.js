@@ -5,6 +5,40 @@ import { describeProject, todayString } from "./_labels.js";
 
 const MODEL = "claude-sonnet-4-6"; // モデル変更時はここだけ更新
 
+/**
+ * AIの返答から最初のJSONオブジェクトだけを取り出す。
+ * 前後に説明文やコードブロックが付いていても壊れない。
+ */
+function extractJson(text) {
+  const cleaned = String(text)
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .trim();
+
+  const start = cleaned.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < cleaned.length; i++) {
+    const ch = cleaned[i];
+
+    if (escaped) { escaped = false; continue; }
+    if (ch === "\\") { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return cleaned.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
@@ -17,7 +51,6 @@ export default async function handler(req, res) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const brandInfo = describeProject(project);
   const dateStr = todayString();
-
   const hasImages = images.length > 0;
 
   const instruction = `あなたはSNS・動画コンテンツの専門プランナーです。
@@ -35,8 +68,11 @@ ${brandInfo}
 - 先頭に絵文字を1つつける
 ${hasImages ? "- 添付された写真に実際に写っているものを必ず活かす。写真に無いものは書かない" : ""}
 
-JSONのみ出力（前後の説明・コードブロック不要）：
+【出力形式】
+以下のJSONだけを出力してください。前置き・後書き・解説・コードブロックは一切書かないこと。
 {"tips":["...","...","...","..."]}`;
+
+  let rawText = "";
 
   try {
     const content = [];
@@ -53,21 +89,38 @@ JSONのみ出力（前後の説明・コードブロック不要）：
 
     const message = await client.messages.create({
       model: MODEL,
-      max_tokens: 700,
+      max_tokens: 800,
       messages: [{ role: "user", content }],
     });
 
-    const text = message.content.map(b => b.text || "").join("").trim();
-    const clean = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean);
+    rawText = message.content.map(b => b.text || "").join("").trim();
 
-    if (!parsed.tips || !Array.isArray(parsed.tips)) {
-      return res.status(500).json({ error: "生成結果の形式が不正です" });
+    const jsonStr = extractJson(rawText);
+    if (!jsonStr) {
+      console.error("JSONが見つかりません:", rawText.slice(0, 400));
+      return res.status(500).json({
+        error: "生成結果を読み取れませんでした",
+        raw: rawText.slice(0, 300),
+      });
     }
-    return res.status(200).json({ tips: parsed.tips });
+
+    const parsed = JSON.parse(jsonStr);
+    const tips = Array.isArray(parsed.tips) ? parsed.tips.filter(t => typeof t === "string" && t.trim()) : [];
+
+    if (tips.length === 0) {
+      return res.status(500).json({
+        error: "ネタ候補が空でした",
+        raw: rawText.slice(0, 300),
+      });
+    }
+
+    return res.status(200).json({ tips });
 
   } catch (err) {
-    console.error("generate-neta error:", err);
-    return res.status(500).json({ error: err.message || "生成に失敗しました" });
+    console.error("generate-neta error:", err, "\nraw:", rawText.slice(0, 400));
+    return res.status(500).json({
+      error: err.message || "生成に失敗しました",
+      raw: rawText.slice(0, 300),
+    });
   }
 }
