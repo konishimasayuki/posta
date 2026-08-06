@@ -65,7 +65,7 @@ export default function BottomNav() {
           top: "-20px",
           zIndex: 10,
         }}>
-          <div onClick={() => handleNavigate("/projects")} style={{
+          <div onClick={() => { navigate("/projects?new=1"); window.scrollTo(0,0); }} style={{
             width: "62px", height: "62px", borderRadius: "50%",
             background: "linear-gradient(135deg, #f97316, #ec4899)",
             display: "flex", alignItems: "center", justifyContent: "center",
