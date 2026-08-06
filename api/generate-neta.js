@@ -2,6 +2,8 @@
 // 今日のネタ候補を生成する
 import Anthropic from "@anthropic-ai/sdk";
 
+const MODEL = "claude-sonnet-4-6"; // モデル変更時はここだけ更新
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
   const { project } = req.body;
@@ -14,7 +16,7 @@ export default async function handler(req, res) {
 
   try {
     const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: MODEL,
       max_tokens: 400,
       messages: [{
         role: "user",
