@@ -65,7 +65,12 @@ export default function BottomNav() {
           top: "-20px",
           zIndex: 10,
         }}>
-          <div onClick={() => { navigate("/projects?new=1"); window.scrollTo(0,0); }} style={{
+          <div onClick={() => {
+            window.scrollTo(0, 0);
+            // すでにプロジェクト一覧にいるときだけ新規作成モーダルを開く
+            // 他のページからは一覧に戻るだけにする
+            navigate(path === "/projects" ? "/projects?new=1" : "/projects");
+          }} style={{
             width: "62px", height: "62px", borderRadius: "50%",
             background: "linear-gradient(135deg, #f97316, #ec4899)",
             display: "flex", alignItems: "center", justifyContent: "center",
