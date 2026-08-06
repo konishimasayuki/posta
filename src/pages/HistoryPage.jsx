@@ -1,5 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import CaptionOverlay from "../components/CaptionOverlay.jsx";
+import { resolveAccent } from "../lib/fonts.js";
+import { formatRelative, formatJstFull } from "../lib/time.js";
 
 const HISTORY = [
   { id: 1, projectName: "カフェ Lumière", projectColor: "#ea580c", projectSecondary: "#fff7ed", projectIcon: "🍽",
@@ -102,7 +105,7 @@ function HistoryCard({ item, onDetail }) {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151" }}>{item.projectName}</div>
-            <div style={{ fontSize: "10px", color: "#9ca3af" }}>{item.createdAt}</div>
+            <div style={{ fontSize: "10px", color: "#9ca3af" }}>{formatRelative(item.createdAt)}</div>
           </div>
           {/* タイプバッジ */}
           <span style={{ fontSize: "9px", fontWeight: 700, padding: "2px 7px", borderRadius: "20px",
@@ -160,6 +163,9 @@ function DetailModal({ item, onClose }) {
   const [activeTab, setActiveTab] = useState(item.platforms[0]);
   const [copied, setCopied] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
+  const [videoTime, setVideoTime] = useState(0);
+  const [showCaptions, setShowCaptions] = useState(true);
+  const videoRef = useRef(null);
   const currentP = PLATFORM_META[activeTab];
 
   return (
@@ -170,7 +176,7 @@ function DetailModal({ item, onClose }) {
         <div style={{ padding: "16px 20px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: "15px", fontWeight: 800, color: "#111827" }}>{item.topic}</div>
-            <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "2px" }}>{item.projectName} · {item.createdAt}</div>
+            <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "2px" }}>{item.projectName} · {formatJstFull(item.createdAt) || item.createdAt}</div>
           </div>
           <button onClick={onClose} style={{ width: "30px", height: "30px", borderRadius: "50%", border: "none", background: "#f3f4f6", fontSize: "14px", cursor: "pointer" }}>✕</button>
         </div>
@@ -182,16 +188,42 @@ function DetailModal({ item, onClose }) {
               <div style={{ fontSize: "12px", fontWeight: 800, color: "#374151", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
                 🎬 生成された動画
                 <span style={{ fontSize: "10px", fontWeight: 600, color: "#9ca3af" }}>· {DURATION_LABEL[item.duration]}</span>
+                {item.captions?.length > 0 && (
+                  <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={showCaptions}
+                      onChange={e => setShowCaptions(e.target.checked)}
+                      style={{ accentColor: "#f97316", width: "13px", height: "13px" }}
+                    />
+                    <span style={{ fontSize: "10px", fontWeight: 700, color: showCaptions ? "#f97316" : "#9ca3af" }}>
+                      テロップ
+                    </span>
+                  </label>
+                )}
               </div>
               <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
                 {item.videoUrl ? (
-                  <video
-                    src={item.videoUrl}
-                    controls
-                    loop
-                    playsInline
-                    style={{ width: "80px", height: "142px", objectFit: "cover", borderRadius: "8px", background: "#000", flexShrink: 0 }}
-                  />
+                  <div style={{ position: "relative", width: "150px", height: "267px", borderRadius: "10px", overflow: "hidden", background: "#000", flexShrink: 0 }}>
+                    <video
+                      ref={videoRef}
+                      src={item.videoUrl}
+                      controls
+                      loop
+                      playsInline
+                      onTimeUpdate={e => setVideoTime(e.target.currentTime)}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                    {showCaptions && item.captions?.length > 0 && (
+                      <CaptionOverlay
+                        captions={item.captions}
+                        currentTime={videoTime}
+                        width={150}
+                        accent={resolveAccent(item.brand || {}, item.projectColor)}
+                        project={item.brand || {}}
+                      />
+                    )}
+                  </div>
                 ) : (
                   <VideoThumb color={item.videoThumb} />
                 )}
