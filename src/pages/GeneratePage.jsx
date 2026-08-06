@@ -255,6 +255,29 @@ export default function GeneratePage() {
   const [netaTipsLoading, setNetaTipsLoading] = useState(false);
   const [neta, setNeta] = useState("");
   const [generatedTexts, setGeneratedTexts] = useState({});
+  const [uploadedImages, setUploadedImages] = useState([]); // {file, url, base64}
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const remaining = 5 - uploadedImages.length;
+    const toAdd = files.slice(0, remaining);
+    toAdd.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setUploadedImages(prev => [...prev, {
+          file,
+          url: ev.target.result,
+          base64: ev.target.result.split(",")[1],
+          mediaType: file.type,
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageRemove = (idx) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== idx));
+  };
 
   const LOAD_STEPS = [
     "ブランド設定を読み込み中",
@@ -383,6 +406,7 @@ JSONのみ出力（前後の説明・バッククォート不要）：
                 input: neta,
                 platforms: selected,
                 topic: neta || "今日のネタ",
+                images: uploadedImages.map(img => ({ base64: img.base64, mediaType: img.mediaType })),
               }),
             });
             const data = await res.json();
@@ -480,20 +504,42 @@ JSONのみ出力（前後の説明・バッククォート不要）：
             {/* 写真・動画素材 */}
             <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px" }}>
               <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>
-                📷 写真・動画素材 <span style={{ color: "#9ca3af", fontWeight: 400 }}>最大5枚・任意</span>
+                📷 写真・動画素材
+                <span style={{ color: "#9ca3af", fontWeight: 400, marginLeft: "6px" }}>最大5枚・任意</span>
+                {uploadedImages.length > 0 && (
+                  <span style={{ marginLeft: "6px", fontSize: "11px", color: "#f97316", fontWeight: 700 }}>{uploadedImages.length}枚選択中</span>
+                )}
               </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                {/* ダミーアップロード済み画像 */}
-                {["☀️", "☕"].map((emoji, i) => (
-                  <div key={i} style={{ width: "64px", height: "64px", borderRadius: "10px", background: "#fff7ed", border: "1.5px solid #fed7aa", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", position: "relative" }}>
-                    {emoji}
-                    <div style={{ position: "absolute", top: "-5px", right: "-5px", width: "16px", height: "16px", borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: "9px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>✕</div>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {uploadedImages.map((img, i) => (
+                  <div key={i} style={{ width: "64px", height: "64px", borderRadius: "10px", overflow: "hidden", position: "relative", flexShrink: 0 }}>
+                    <img src={img.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <button onClick={() => handleImageRemove(i)} style={{
+                      position: "absolute", top: "-4px", right: "-4px",
+                      width: "18px", height: "18px", borderRadius: "50%",
+                      background: "#ef4444", color: "#fff", border: "2px solid #fff",
+                      fontSize: "9px", cursor: "pointer", display: "flex",
+                      alignItems: "center", justifyContent: "center", fontWeight: 700,
+                    }}>✕</button>
                   </div>
                 ))}
-                <label style={{ width: "64px", height: "64px", borderRadius: "10px", border: "2px dashed #d1d5db", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#9ca3af", fontSize: "20px", gap: "2px" }}>
-                  ＋<span style={{ fontSize: "9px" }}>3枚</span>
-                </label>
+                {uploadedImages.length < 5 && (
+                  <label style={{
+                    width: "64px", height: "64px", borderRadius: "10px",
+                    border: "2px dashed #d1d5db", display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center", cursor: "pointer",
+                    color: "#9ca3af", fontSize: "20px", gap: "2px", flexShrink: 0,
+                  }}>
+                    ＋<span style={{ fontSize: "9px" }}>{5 - uploadedImages.length}枚</span>
+                    <input type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: "none" }} />
+                  </label>
+                )}
               </div>
+              {uploadedImages.length > 0 && (
+                <div style={{ marginTop: "8px", fontSize: "11px", color: "#f97316", fontWeight: 600, background: "#fff7ed", padding: "6px 10px", borderRadius: "8px" }}>
+                  📸 写真の内容をAIが読み取ってネタ候補・投稿文に反映します
+                </div>
+              )}
             </div>
 
             {/* ネタ入力 */}
