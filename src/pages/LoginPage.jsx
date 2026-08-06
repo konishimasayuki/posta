@@ -43,37 +43,60 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState(null);
 
-  const DEMO_ACCOUNTS = [
-    { id: "posta", password: "0383", role: "demo", plan: "pro", name: "デモユーザー" },
-  ];
-  const ADMIN_ACCOUNTS = [
-    { id: "admin", password: "admin0383", role: "admin", name: "管理者" },
-  ];
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const demoMatch = DEMO_ACCOUNTS.find(a => a.id === email && a.password === password);
-      const adminMatch = ADMIN_ACCOUNTS.find(a => a.id === email && a.password === password);
+    try {
+      const res = await fetch(`/api/users?loginId=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`);
+      const data = await res.json();
 
-      if (demoMatch) {
-        sessionStorage.setItem("posta_user", JSON.stringify({ role: "demo", plan: demoMatch.plan, name: demoMatch.name }));
+      if (!res.ok) {
+        setError(data.error || "ログインに失敗しました");
         setLoading(false);
-        window.scrollTo(0, 0);
-        navigate("/projects");
         return;
       }
-      if (adminMatch) {
-        sessionStorage.setItem("posta_user", JSON.stringify({ role: "admin", plan: "business", name: adminMatch.name }));
-        setLoading(false);
-        window.scrollTo(0, 0);
-        navigate("/admin");
-        return;
-      }
+
+      const user = data.user;
+      sessionStorage.setItem("posta_user", JSON.stringify(user));
       setLoading(false);
-      setDone(true);
-    }, 1000);
+      window.scrollTo(0, 0);
+
+      if (user.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/projects");
+      }
+    } catch (err) {
+      setError("通信エラーが発生しました");
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loginId: email, password, name }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "登録に失敗しました");
+        setLoading(false);
+        return;
+      }
+      // 登録後そのままログイン
+      sessionStorage.setItem("posta_user", JSON.stringify({ id: email, name: name || email, role: "user", plan: "free" }));
+      setLoading(false);
+      window.scrollTo(0, 0);
+      navigate("/projects");
+    } catch (err) {
+      setError("通信エラーが発生しました");
+      setLoading(false);
+    }
   };
 
   return (
@@ -144,8 +167,13 @@ export default function LoginPage() {
               </div>
             )}
 
+            {error && (
+              <div style={{ marginBottom: "12px", padding: "10px 14px", background: "#fef2f2", borderRadius: "10px", border: "1px solid #fecaca", fontSize: "12px", color: "#ef4444", fontWeight: 600 }}>
+                ⚠️ {error}
+              </div>
+            )}
             <button
-              onClick={handleSubmit}
+              onClick={() => { setError(null); mode === "signup" ? handleSignup() : handleSubmit(); }}
               disabled={loading || !email || (mode !== "forgot" && !password)}
               style={{
                 width: "100%", padding: "14px", borderRadius: "12px", border: "none",
