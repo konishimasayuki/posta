@@ -63,6 +63,7 @@ export default function BottomNav() {
           left: "50%",
           transform: "translateX(-50%)",
           top: "-20px",
+          zIndex: 10,
         }}>
           <div onClick={() => handleNavigate("/projects")} style={{
             width: "62px", height: "62px", borderRadius: "50%",
