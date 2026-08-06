@@ -29,6 +29,45 @@ function extractJson(text) {
 }
 
 const ROLES = ["hook", "punch", "info", "cta"];
+
+/**
+ * ユーザーが指定した言葉を、AIの判断を介さずに機械的に配置する保険。
+ * 「500円と表示させ続けたい」のような指定を、AIが書き換えたり
+ * 落としたりした場合でも確実に反映するための最終手段。
+ */
+function buildFallbackFromWords(words, duration) {
+  const n = words.length;
+  if (n === 0) return [];
+
+  const per = duration / n;
+  const hasDigit = w => /[0-9０-９]/.test(w);
+  const punchIndex = words.findIndex(hasDigit); // 数字を含む言葉を主役にする
+
+  return words.map((text, i) => {
+    let role = "info";
+    if (i === punchIndex) role = "punch";
+    else if (i === 0 && punchIndex !== 0) role = "hook";
+    else if (i === n - 1 && punchIndex !== n - 1) role = "cta";
+
+    const isPunch = role === "punch";
+    return {
+      id: `cap_${i}`,
+      text: text.slice(0, 20),
+      start: Number((i * per).toFixed(2)),
+      end: Number(((i + 1) * per).toFixed(2)),
+      role,
+      position: isPunch ? "center" : "bottom",
+      size: isPunch ? "xl" : "md",
+      emphasis: isPunch ? "highlight" : "none",
+    };
+  });
+}
+
+/** 生成結果に、指定した言葉がすべて（過不足なく）含まれているか確認する */
+function containsAllWords(captions, words) {
+  const texts = captions.map(c => c.text.trim());
+  return words.every(w => texts.includes(w.trim()));
+}
 const POSITIONS = ["top", "center", "bottom"];
 const SIZES = ["sm", "md", "lg", "xl"];
 const EMPHASIS = ["none", "box", "underline", "highlight"];
@@ -88,7 +127,7 @@ function sanitize(captions, duration) {
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { project = {}, neta = "", duration = 5 } = req.body || {};
+  const { project = {}, neta = "", duration = 5, words = [] } = req.body || {};
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: "APIキーが設定されていません" });
@@ -98,7 +137,51 @@ export default async function handler(req, res) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const brandInfo = describeProject(project);
 
-  const instruction = `あなたは縦型ショート動画のテロップ設計の専門家です。
+  // ユーザーがテロップの言葉を直接指定した場合は、その言葉「だけ」を材料にする。
+  // AIが新しい文言を作り出すことはせず、役割の割り当てとタイミングだけを判断する。
+  const userWords = Array.isArray(words)
+    ? words.filter(w => typeof w === "string" && w.trim()).map(w => w.trim().slice(0, 20))
+    : [];
+  const hasUserWords = userWords.length > 0;
+
+  const instruction = hasUserWords
+    ? `あなたは縦型ショート動画のテロップ設計の専門家です。
+${seconds}秒の動画に、以下の「指定された言葉」だけを使ってテロップを設計してください。
+
+【ブランド設定（雰囲気の参考程度に）】
+${brandInfo}
+
+【指定された言葉（このリストの言葉だけを使うこと。書き換え・言い換え禁止）】
+${userWords.map((w, i) => (i + 1) + ". " + w).join(String.fromCharCode(10))}
+
+【設計の考え方】
+- 指定された言葉を、意味が伝わりやすい順番に並べ替えてよい
+- 言葉の中で一番強く伝えたいもの（価格・数字・キャッチコピーなど）を punch として最も強く見せる
+- 最初に来る言葉は自然と hook の役割になりやすい
+- 最後に行動を促すような言葉（「DMで」「今すぐ」等）があれば cta にする
+- それ以外は info として扱う
+- 新しい言葉を作らない。指定された${userWords.length}個の言葉をすべて使うこと
+- 1個の言葉を複数回に分けて表示しない
+
+【文字数の目安（新しく書かない前提なのであくまで参考）】
+- 短い言葉ほど強く（xl・punch向き）、長い言葉は info や小さめサイズが読みやすい
+
+【タイミング】
+- 動画は${seconds}秒。start/end は 0 〜 ${seconds} の範囲の秒数
+- テロップ同士は重ねない（前のendの後に次のstartが来る）
+- 各テロップは最低1秒は表示する
+- 指定された言葉の数（${userWords.length}個）ぶんだけ出力する
+
+【各項目の意味】
+- role: hook（引き）/ punch（主役）/ info（補足）/ cta（行動喚起）
+- position: top / center / bottom（punchはcenter推奨）
+- size: sm / md / lg / xl（punchはxl推奨）
+- emphasis: none / box（枠）/ underline（下線）/ highlight（マーカー）
+
+【出力形式】
+以下のJSONだけを出力。前置き・解説・コードブロックは一切書かないこと。
+{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none"}]}`
+    : `あなたは縦型ショート動画のテロップ設計の専門家です。
 ${seconds}秒の動画に載せるテロップを設計してください。
 
 【ブランド設定】
@@ -155,13 +238,22 @@ ${neta || "ブランド設定に沿った内容"}
     }
 
     const parsed = JSON.parse(jsonStr);
-    const captions = sanitize(parsed.captions, seconds);
+    let captions = sanitize(parsed.captions, seconds);
 
     if (captions.length === 0) {
-      return res.status(500).json({ error: "テロップが空でした", raw: rawText.slice(0, 300) });
+      if (hasUserWords) {
+        // AIが空を返した場合でも、指定された言葉だけは確実に出す
+        captions = buildFallbackFromWords(userWords, seconds);
+      } else {
+        return res.status(500).json({ error: "テロップが空でした", raw: rawText.slice(0, 300) });
+      }
+    } else if (hasUserWords && !containsAllWords(captions, userWords)) {
+      // AIが言葉を書き換えた・落とした場合は、指定通りの機械的な配置に差し替える
+      console.warn("指定した言葉が反映されなかったためフォールバックします:", userWords, captions.map(c => c.text));
+      captions = buildFallbackFromWords(userWords, seconds);
     }
 
-    return res.status(200).json({ captions });
+    return res.status(200).json({ captions, usedFallback: hasUserWords && captions.every(c => c.id?.startsWith("cap_")) });
 
   } catch (err) {
     console.error("generate-captions error:", err, "\nraw:", rawText.slice(0, 300));
