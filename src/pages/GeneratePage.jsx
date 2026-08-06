@@ -388,8 +388,12 @@ JSONのみ出力（前後の説明・バッククォート不要）：
             const data = await res.json();
             if (data.results) {
               setGeneratedTexts(data.results);
+            } else if (data.error) {
+              console.error("API error:", data.error);
             }
-          } catch {}
+          } catch (err) {
+            console.error("fetch error:", err);
+          }
 
           setPhase("result");
           setActiveTab(selected[0]);
@@ -428,7 +432,7 @@ JSONのみ出力（前後の説明・バッククォート不要）：
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(DUMMY_TEXTS[activeTab] || "");
+    navigator.clipboard.writeText(generatedTexts[activeTab] || DUMMY_TEXTS[activeTab] || "");
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
