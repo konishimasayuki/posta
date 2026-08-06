@@ -2,6 +2,8 @@
 // Kling AI用の動画プロンプトを生成する
 import Anthropic from "@anthropic-ai/sdk";
 
+const MODEL = "claude-sonnet-4-6"; // モデル変更時はここだけ更新
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
   const { project, input } = req.body;
@@ -9,7 +11,7 @@ export default async function handler(req, res) {
 
   try {
     const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: MODEL,
       max_tokens: 200,
       messages: [{
         role: "user",
@@ -18,8 +20,9 @@ export default async function handler(req, res) {
 目的：${project.purpose}（${project.purposeDetail || ""}）
 ターゲット：${project.targets?.join("・")}
 トーン：${project.tone}、動画スタイル：${project.videoStyle}
+映像タイプ：${project.videoType || "realpeople"}
 ネタ：${input || ""}
-縦動画9:16`,
+縦動画9:16、日本向けコンテンツ`,
       }],
     });
     const prompt = message.content.map(b => b.text || "").join("").trim();
