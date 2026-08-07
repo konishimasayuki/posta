@@ -6,14 +6,18 @@
 // 装飾（captionStyles）もまだ使わない。まずは素朴に文字が焼き込めるかを見る。
 //
 // リクエスト例:
-// { "videoUrl": "https://...kling-output.mp4", "text": "テスト表示" }
+// { "videoUrl": "https://...kling-output.mp4", "text": "テスト表示", "duration": 5 }
+//
+// duration を渡さない場合、テンプレート自体が持つ長さ（48秒）が
+// そのまま使われてしまい、背景動画が終わったあとも真っ黒な画面が
+// 続いてしまう。必ずKling動画の実際の長さを指定すること。
 
 import { creatomateFetch, getTemplateId } from "./_creatomate.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { videoUrl, text = "テスト表示" } = req.body || {};
+  const { videoUrl, text = "テスト表示", duration = 5 } = req.body || {};
 
   if (!videoUrl) {
     return res.status(400).json({ error: "videoUrl が必要です" });
@@ -22,9 +26,11 @@ export default async function handler(req, res) {
   try {
     const templateId = getTemplateId();
 
-    // まずは背景動画とhookの文字だけを差し込む。
+    // 背景動画・hookの文字・動画全体の長さを差し込む。
     // 要素名（background / hook）は、konishiさんのテンプレートの
     // レイヤー名とそのまま一致させる必要がある。
+    // duration はテンプレート全体（トップレベル）のプロパティなので、
+    // 要素名を付けずそのまま指定する。
     const data = await creatomateFetch("/renders", {
       method: "POST",
       body: JSON.stringify({
@@ -32,6 +38,7 @@ export default async function handler(req, res) {
         modifications: {
           "background.source": videoUrl,
           "hook.text": text,
+          "duration": Number(duration) || 5,
         },
       }),
     });
