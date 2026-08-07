@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import CaptionOverlay from "../components/CaptionOverlay.jsx";
+import CaptionStylePicker from "../components/CaptionStylePicker.jsx";
 import { resolveAccent, resolveFont } from "../lib/fonts.js";
-import { captionStylesByCategory } from "../lib/captionStyles.js";
-
-const CAPTION_STYLE_GROUPS = captionStylesByCategory();
+import { isKnownStyleId, getCaptionStyle, fontLabel } from "../lib/captionStyles.js";
 
 const PLATFORMS = [
   { id: "tiktok",    label: "TikTok",    icon: "🎵", accent: "#fe2c55", bg: "#fff0f3" },
@@ -643,6 +642,9 @@ export default function GeneratePage() {
       return next;
     });
   };
+
+  // 装飾スタイルを選ぶモーダルを開いているテロップの番号（未表示は null）
+  const [stylePickerIndex, setStylePickerIndex] = useState(null);
 
   // AIが選んだ装飾スタイルを手動で差し替える
   const updateCaptionStyle = (index, styleId) => {
@@ -1294,24 +1296,31 @@ export default function GeneratePage() {
                             {/* 装飾スタイル（AIが選んだものを手動で差し替えられる） */}
                             <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingLeft: "60px" }}>
                               <span style={{ fontSize: "9px", color: "#9ca3af", flexShrink: 0 }}>装飾</span>
-                              <select
-                                value={cap.styleId || ""}
-                                onChange={e => updateCaptionStyle(i, e.target.value)}
+                              <button
+                                onClick={() => setStylePickerIndex(i)}
                                 style={{
-                                  flex: 1, minWidth: 0, padding: "4px 6px", borderRadius: "7px",
-                                  border: "1px solid #e5e7eb", background: "#fff",
-                                  fontSize: "11px", fontFamily: "inherit", color: "#374151", outline: "none",
+                                  flex: 1, minWidth: 0, padding: "6px 10px", borderRadius: "7px",
+                                  border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer",
+                                  fontFamily: "inherit", textAlign: "left",
+                                  display: "flex", alignItems: "center", gap: "6px",
                                 }}
                               >
-                                <option value="">ブランド設定に従う</option>
-                                {CAPTION_STYLE_GROUPS.map(group => (
-                                  <optgroup key={group.key} label={group.label}>
-                                    {group.styles.map(s => (
-                                      <option key={s.id} value={s.id}>{s.label}</option>
-                                    ))}
-                                  </optgroup>
-                                ))}
-                              </select>
+                                {isKnownStyleId(cap.styleId) ? (
+                                  <>
+                                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#374151" }}>
+                                      {getCaptionStyle(cap.styleId).label}
+                                    </span>
+                                    <span style={{ fontSize: "10px", color: "#9ca3af" }}>
+                                      {fontLabel(getCaptionStyle(cap.styleId))}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span style={{ fontSize: "11px", color: "#9ca3af" }}>ブランド設定に従う</span>
+                                )}
+                                <span style={{ marginLeft: "auto", fontSize: "10px", color: "#f97316", fontWeight: 700, flexShrink: 0 }}>
+                                  変更
+                                </span>
+                              </button>
                             </div>
                           </div>
                         );
@@ -1401,6 +1410,16 @@ export default function GeneratePage() {
           </div>
         )}
       </div>
+
+      {/* 装飾スタイルの選択モーダル */}
+      {stylePickerIndex !== null && captions[stylePickerIndex] && (
+        <CaptionStylePicker
+          text={captions[stylePickerIndex].text}
+          value={captions[stylePickerIndex].styleId || ""}
+          onSelect={styleId => updateCaptionStyle(stylePickerIndex, styleId)}
+          onClose={() => setStylePickerIndex(null)}
+        />
+      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');

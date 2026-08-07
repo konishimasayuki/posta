@@ -3,12 +3,12 @@
   "note": "テロップスタイル50種の見た目データ。色や縁取りの太さを変えたいときはこのファイルだけを編集する。CSSの組み立ては captionStyles.js が担当する。stroke/shadow の数値は文字サイズに対する倍率（0.13 なら文字サイズの13%）。",
 
   "fonts": {
-    "gothic": { "family": "'Noto Sans JP', sans-serif", "google": "Noto+Sans+JP:wght@700;900", "weight": 900 },
-    "round":  { "family": "'Zen Maru Gothic', 'M PLUS Rounded 1c', sans-serif", "google": "Zen+Maru+Gothic:wght@700;900", "weight": 900 },
-    "pop":    { "family": "'Dela Gothic One', 'Noto Sans JP', sans-serif", "google": "Dela+Gothic+One", "weight": 400 },
-    "reggae": { "family": "'Reggae One', 'Dela Gothic One', sans-serif", "google": "Reggae+One", "weight": 400 },
-    "mincho": { "family": "'Shippori Mincho', 'Noto Serif JP', serif", "google": "Shippori+Mincho:wght@600;800", "weight": 800 },
-    "brush":  { "family": "'Yuji Syuku', 'Shippori Mincho', serif", "google": "Yuji+Syuku", "weight": 400 }
+    "gothic": { "label": "ゴシック体",   "family": "'Noto Sans JP', sans-serif", "google": "Noto+Sans+JP:wght@700;900", "weight": 900 },
+    "round":  { "label": "丸ゴシック",   "family": "'Zen Maru Gothic', 'M PLUS Rounded 1c', sans-serif", "google": "Zen+Maru+Gothic:wght@700;900", "weight": 900 },
+    "pop":    { "label": "極太ポップ",   "family": "'Dela Gothic One', 'Noto Sans JP', sans-serif", "google": "Dela+Gothic+One", "weight": 400 },
+    "reggae": { "label": "レゲエ体",     "family": "'Reggae One', 'Dela Gothic One', sans-serif", "google": "Reggae+One", "weight": 400 },
+    "mincho": { "label": "明朝体",       "family": "'Shippori Mincho', 'Noto Serif JP', serif", "google": "Shippori+Mincho:wght@600;800", "weight": 800 },
+    "brush":  { "label": "筆文字",       "family": "'Yuji Syuku', 'Shippori Mincho', serif", "google": "Yuji+Syuku", "weight": 400 }
   },
 
   "roleDefaults": {

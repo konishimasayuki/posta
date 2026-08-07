@@ -38,6 +38,11 @@ export function getCaptionStyle(id, role = "info") {
   return STYLE_MAP[fallbackId] || data.styles[0];
 }
 
+/** そのスタイルが使う書体の表示名（「ゴシック体」など） */
+export function fontLabel(style) {
+  return CAPTION_FONTS[style?.font]?.label || "";
+}
+
 /** そのスタイルが使うGoogle Fontsだけを読み込む（重複読み込みは避ける） */
 export function ensureCaptionFontLoaded(style) {
   if (typeof document === "undefined") return;
