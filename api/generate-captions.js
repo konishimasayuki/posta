@@ -6,6 +6,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { describeProject } from "./_labels.js";
+import { CAPTION_STYLE_IDS, ROLE_DEFAULT_STYLE, styleCatalogText } from "./_captionStyles.js";
 
 const MODEL = "claude-sonnet-4-6";
 
@@ -59,6 +60,7 @@ function buildFallbackFromWords(words, duration) {
       position: isPunch ? "center" : "bottom",
       size: isPunch ? "xl" : "md",
       emphasis: isPunch ? "highlight" : "none",
+      styleId: ROLE_DEFAULT_STYLE[role] || ROLE_DEFAULT_STYLE.info,
     };
   });
 }
@@ -90,14 +92,18 @@ function sanitize(captions, duration) {
       // 終了は必ず尺の中に収める
       const end = Math.min(duration, Math.max(start + MIN_SHOW, rawEnd));
 
+      const role = ROLES.includes(c.role) ? c.role : "info";
+
       return {
         text: c.text.trim().slice(0, 40),
         start,
         end,
-        role:     ROLES.includes(c.role) ? c.role : "info",
+        role,
         position: POSITIONS.includes(c.position) ? c.position : "bottom",
         size:     SIZES.includes(c.size) ? c.size : "md",
         emphasis: EMPHASIS.includes(c.emphasis) ? c.emphasis : "none",
+        // 存在しないスタイルIDを返してきた場合は role ごとの既定に丸める
+        styleId:  CAPTION_STYLE_IDS.has(c.styleId) ? c.styleId : (ROLE_DEFAULT_STYLE[role] || ROLE_DEFAULT_STYLE.info),
       };
     })
     .sort((a, b) => a.start - b.start);
@@ -144,6 +150,21 @@ export default async function handler(req, res) {
     : [];
   const hasUserWords = userWords.length > 0;
 
+  // スタイルの選び方は「言葉の指定あり／なし」で共通なので1箇所にまとめる
+  const styleSection = `【テロップの装飾スタイル（styleId）】
+1つ1つのテロップに、以下の一覧から最も合うスタイルを1つ選んでIDを指定してください。
+
+${styleCatalogText()}
+
+【スタイル選びの考え方】
+- ブランド設定のトーン・業種・ターゲットに合うものを選ぶ
+- punch（主役）には強いスタイル（強調・目立つ・金・派手金など）を当てる
+- info（補足）は読みやすい基本スタイル（ゴシ強調_黒など）に寄せる
+- 感情系（怒り・ツッコミ・恐怖）は、ネタが実際にその感情を扱うときだけ使う
+- 1本の動画の中でスタイルをバラバラにしすぎない。基本は2〜3種類までに抑え、
+  punchだけ別格の1つを当てるのが読みやすい
+- 迷ったら基本カテゴリ（CJ_S001〜CJ_S018, CJ_S037, CJ_S038）から選ぶ`;
+
   const instruction = hasUserWords
     ? `あなたは縦型ショート動画のテロップ設計の専門家です。
 ${seconds}秒の動画に、以下の「指定された言葉」だけを使ってテロップを設計してください。
@@ -178,9 +199,11 @@ ${userWords.map((w, i) => (i + 1) + ". " + w).join(String.fromCharCode(10))}
 - size: sm / md / lg / xl（punchはxl推奨）
 - emphasis: none / box（枠）/ underline（下線）/ highlight（マーカー）
 
+${styleSection}
+
 【出力形式】
 以下のJSONだけを出力。前置き・解説・コードブロックは一切書かないこと。
-{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none"}]}`
+{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none","styleId":"CJ_S014"}]}`
     : `あなたは縦型ショート動画のテロップ設計の専門家です。
 ${seconds}秒の動画に載せるテロップを設計してください。
 
@@ -217,9 +240,11 @@ ${neta || "ブランド設定に沿った内容"}
 - size: sm / md / lg / xl（punchはxl推奨）
 - emphasis: none / box（枠）/ underline（下線）/ highlight（マーカー）
 
+${styleSection}
+
 【出力形式】
 以下のJSONだけを出力。前置き・解説・コードブロックは一切書かないこと。
-{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none"}]}`;
+{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none","styleId":"CJ_S014"}]}`;
 
   let rawText = "";
 

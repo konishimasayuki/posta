@@ -2,6 +2,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import CaptionOverlay from "../components/CaptionOverlay.jsx";
 import { resolveAccent, resolveFont } from "../lib/fonts.js";
+import { captionStylesByCategory } from "../lib/captionStyles.js";
+
+const CAPTION_STYLE_GROUPS = captionStylesByCategory();
 
 const PLATFORMS = [
   { id: "tiktok",    label: "TikTok",    icon: "🎵", accent: "#fe2c55", bg: "#fff0f3" },
@@ -641,6 +644,15 @@ export default function GeneratePage() {
     });
   };
 
+  // AIが選んだ装飾スタイルを手動で差し替える
+  const updateCaptionStyle = (index, styleId) => {
+    setCaptions(prev => {
+      const next = prev.map((c, i) => i === index ? { ...c, styleId } : c);
+      captionsRef.current = next;
+      return next;
+    });
+  };
+
   const addCaptionWord = (word) => {
     const trimmed = word.trim();
     if (!trimmed) return;
@@ -1250,32 +1262,57 @@ export default function GeneratePage() {
                         const roleMeta = ROLE_META[cap.role] || ROLE_META.info;
                         return (
                           <div key={cap.id} style={{
-                            display: "flex", alignItems: "center", gap: "8px",
+                            display: "flex", flexDirection: "column", gap: "6px",
                             padding: "8px 10px", borderRadius: "10px",
                             background: "#f8f9fb", border: "1px solid #f3f4f6",
                           }}>
-                            <div style={{ fontSize: "9px", fontWeight: 700, color: "#9ca3af", width: "52px", flexShrink: 0 }}>
-                              {cap.start}〜{cap.end}s
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <div style={{ fontSize: "9px", fontWeight: 700, color: "#9ca3af", width: "52px", flexShrink: 0 }}>
+                                {cap.start}〜{cap.end}s
+                              </div>
+                              <span style={{
+                                fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "20px",
+                                background: roleMeta.bg, color: roleMeta.color, flexShrink: 0, whiteSpace: "nowrap",
+                              }}>
+                                {roleMeta.label}
+                              </span>
+                              <input
+                                value={cap.text}
+                                onChange={e => updateCaptionText(i, e.target.value)}
+                                style={{
+                                  flex: 1, minWidth: 0, padding: "5px 8px", borderRadius: "7px",
+                                  border: "1px solid #e5e7eb", fontSize: "12px", fontFamily: "inherit",
+                                  color: "#111827", outline: "none",
+                                }}
+                              />
+                              <button onClick={() => seekTo(cap.start)} title="ここから再生" style={{
+                                flexShrink: 0, width: "26px", height: "26px", borderRadius: "7px",
+                                border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: "10px",
+                              }}>▶</button>
                             </div>
-                            <span style={{
-                              fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "20px",
-                              background: roleMeta.bg, color: roleMeta.color, flexShrink: 0, whiteSpace: "nowrap",
-                            }}>
-                              {roleMeta.label}
-                            </span>
-                            <input
-                              value={cap.text}
-                              onChange={e => updateCaptionText(i, e.target.value)}
-                              style={{
-                                flex: 1, minWidth: 0, padding: "5px 8px", borderRadius: "7px",
-                                border: "1px solid #e5e7eb", fontSize: "12px", fontFamily: "inherit",
-                                color: "#111827", outline: "none",
-                              }}
-                            />
-                            <button onClick={() => seekTo(cap.start)} title="ここから再生" style={{
-                              flexShrink: 0, width: "26px", height: "26px", borderRadius: "7px",
-                              border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: "10px",
-                            }}>▶</button>
+
+                            {/* 装飾スタイル（AIが選んだものを手動で差し替えられる） */}
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingLeft: "60px" }}>
+                              <span style={{ fontSize: "9px", color: "#9ca3af", flexShrink: 0 }}>装飾</span>
+                              <select
+                                value={cap.styleId || ""}
+                                onChange={e => updateCaptionStyle(i, e.target.value)}
+                                style={{
+                                  flex: 1, minWidth: 0, padding: "4px 6px", borderRadius: "7px",
+                                  border: "1px solid #e5e7eb", background: "#fff",
+                                  fontSize: "11px", fontFamily: "inherit", color: "#374151", outline: "none",
+                                }}
+                              >
+                                <option value="">ブランド設定に従う</option>
+                                {CAPTION_STYLE_GROUPS.map(group => (
+                                  <optgroup key={group.key} label={group.label}>
+                                    {group.styles.map(s => (
+                                      <option key={s.id} value={s.id}>{s.label}</option>
+                                    ))}
+                                  </optgroup>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                         );
                       })}

@@ -3,6 +3,12 @@
 
 import { useEffect } from "react";
 import { resolveFont, ensureFontLoaded } from "../lib/fonts.js";
+import {
+  isKnownStyleId,
+  getCaptionStyle,
+  buildCaptionLayers,
+  ensureCaptionFontLoaded,
+} from "../lib/captionStyles.js";
 
 const SIZE_SCALE = {
   sm: 0.042,
@@ -142,6 +148,21 @@ function captionStyle(cap, width, accent, font) {
   return base;
 }
 
+/**
+ * スタイル指定（styleId）があるテロップの位置決め。
+ * 見た目そのものは captionStyles.js が組み立てるので、ここは置き場所だけを決める。
+ */
+function styledContainer(cap) {
+  return {
+    position: "absolute",
+    left: "6%",
+    right: "6%",
+    pointerEvents: "none",
+    willChange: "transform, opacity",
+    ...POSITION_STYLE[cap.position],
+  };
+}
+
 export default function CaptionOverlay({
   captions = [],
   currentTime = 0,
@@ -152,6 +173,15 @@ export default function CaptionOverlay({
   const font = resolveFont(project);
 
   useEffect(() => { ensureFontLoaded(font); }, [font]);
+
+  // スタイル指定があるテロップは、そのスタイルが使う書体を先に読み込んでおく
+  const styleIds = captions.map(c => c.styleId).filter(isKnownStyleId).join(",");
+  useEffect(() => {
+    if (!styleIds) return;
+    for (const id of styleIds.split(",")) {
+      ensureCaptionFontLoaded(getCaptionStyle(id));
+    }
+  }, [styleIds]);
 
   if (!captions.length) return null;
 
@@ -173,20 +203,37 @@ export default function CaptionOverlay({
         const exitP = clamp01(remain / EXIT);
         const exitEase = easeOutQuint(exitP);
 
-        const style = captionStyle(cap, width, accent, font);
         const isCenter = cap.position === "center";
+        const commonMotion = {
+          opacity: motion.opacity * exitEase,
+          // centerのときは縦中央寄せの分を足す
+          transform: `${isCenter ? "translateY(-50%) " : ""}${motion.transform} translateY(${((1 - exitEase) * -6).toFixed(2)}px)`,
+          filter: motion.filter,
+        };
+
+        // ── スタイル指定あり（50種のテロップスタイル）──
+        if (isKnownStyleId(cap.styleId)) {
+          const spec = getCaptionStyle(cap.styleId, cap.role);
+          const fontSize = Math.round(width * (SIZE_SCALE[cap.size] || SIZE_SCALE.md));
+          const { wrapper, strokes, fill } = buildCaptionLayers(spec, fontSize);
+
+          return (
+            <div key={cap.id} style={{ ...styledContainer(cap), ...commonMotion }}>
+              <span style={wrapper}>
+                {strokes.map((s, i) => (
+                  <span key={i} style={s} aria-hidden="true">{cap.text}</span>
+                ))}
+                <span style={fill}>{cap.text}</span>
+              </span>
+            </div>
+          );
+        }
+
+        // ── スタイル指定なし（旧データ・ブランド設定に従う）──
+        const style = captionStyle(cap, width, accent, font);
 
         return (
-          <div
-            key={cap.id}
-            style={{
-              ...style,
-              opacity: motion.opacity * exitEase,
-              // centerのときは縦中央寄せの分を足す
-              transform: `${isCenter ? "translateY(-50%) " : ""}${motion.transform} translateY(${((1 - exitEase) * -6).toFixed(2)}px)`,
-              filter: motion.filter,
-            }}
-          >
+          <div key={cap.id} style={{ ...style, ...commonMotion }}>
             {cap.text}
           </div>
         );

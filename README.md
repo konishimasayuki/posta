@@ -97,6 +97,7 @@ CLOUDINARY_API_SECRET=xxxxxxxx           未設定
 │   ├── _labels.js             設定IDを日本語に変換（共通）
 │   ├── _redis.js              Redisクライアント・安全なJSON処理（共通）
 │   ├── _kling.js              Kling認証・プラン上限（共通）
+│   ├── _captionStyles.js      テロップスタイル50種のID・用途（AIに選ばせる用）
 │   ├── users.js               ログイン認証・ユーザー登録
 │   ├── projects.js            プロジェクト保存・取得
 │   ├── history.js             履歴保存・取得・削除
@@ -113,6 +114,8 @@ CLOUDINARY_API_SECRET=xxxxxxxx           未設定
     ├── index.css
     ├── lib/
     │   ├── fonts.js           ブランド設定→Webフォント対応づけ
+    │   ├── captionStyles.json テロップスタイル50種の見た目データ（色・フチ・書体）
+    │   ├── captionStyles.js   上記JSONをCSSに変換する
     │   └── time.js            日本時間の表示
     ├── components/
     │   ├── BottomNav.jsx
@@ -221,7 +224,8 @@ Claude  → テロップの構成を設計
   role: "punch",        // hook | punch | info | cta
   position: "center",   // top | center | bottom
   size: "xl",           // sm | md | lg | xl
-  emphasis: "highlight" // none | box | underline | highlight
+  emphasis: "highlight",// none | box | underline | highlight（styleId未指定のときだけ使う）
+  styleId: "CJ_S041"    // 装飾スタイル。CJ_S001〜CJ_S050
 }
 ```
 
@@ -232,9 +236,41 @@ Claude  → テロップの構成を設計
 - 最低0.8秒は表示される
 - 不正な role / position / size / emphasis は既定値に丸める
 
+### 装飾スタイル（50種）
+
+Premiere Proのテキストスタイル50種をWebで再現したもの。
+Claudeがテロップ1つずつに `styleId` を選び、フロントがそのとおりに描く。
+
+```
+CJ_S001〜S018  基本（ゴシック・ポップ・ふとかわ・まるゴシ・強調・グラデ）
+CJ_S019〜S027  感情（怒り・ツッコミ・恐怖）
+CJ_S028〜S033  装飾（2色・ストライプ・蛍光）
+CJ_S034〜S050  質感（色っぽい・カッコイイ・金銀銅・派手金・レインボー）
+```
+
+**色や太さを変えたいときは `src/lib/captionStyles.json` だけを編集する。**
+`captionStyles.js` はJSONをCSSに変換するだけで、見た目の値は持っていない。
+
+```json
+{ "id": "CJ_S001", "font": "gothic", "fill": "#ef4b57",
+  "stroke": [[0.13, "#ffffff"]], "shadow": [[0, 0.05, 0.10, "rgba(0,0,0,0.35)"]] }
+```
+
+`stroke` `shadow` の数値は文字サイズに対する倍率（0.13 なら文字サイズの13%）。
+画面サイズが変わっても比率が保たれる。
+
+描画は「太いフチ → 細いフチ → 塗り」を重ねる2〜3層構造。
+グラデーションの塗りは `background-clip:text` を使う都合で
+`-webkit-text-stroke` と同居できないため、層を分けている。
+
+IDを増減するときは `api/_captionStyles.js` も必ず一緒に直すこと。
+AIに渡すカタログがそちらにあり、ズレるとAIが存在しないIDを返す。
+（不正なIDは role ごとの既定スタイルに丸めるので画面は壊れない）
+
 ### フォント
 
 `src/lib/fonts.js` がブランド設定から書体を決める。
+`styleId` が付いたテロップは、この設定ではなくスタイル側の書体を使う。
 
 | 設定 | 実フォント |
 |---|---|
