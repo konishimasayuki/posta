@@ -270,6 +270,25 @@ export default function GeneratePage() {
   ];
   const DURATION_SECONDS = Object.fromEntries(DURATION_OPTIONS.map(d => [d.id, d.klingSeconds]));
 
+  // プロジェクトチップの表示用（軽量マップ。詳細な定義はProjectListPage側にあります）
+  const INDUSTRY_ICON = {
+    restaurant: "🍽", beauty: "💅", fitness: "💪", education: "📚",
+    medical: "🏥", ec: "🛍", it: "💻", creative: "🎨",
+    service: "🤝", legal: "⚖️", auto: "🚗", realestate: "🏠", other: "📦",
+  };
+  const TONE_LABEL = {
+    friendly: "フレンドリー", professional: "プロフェッショナル", cute: "かわいい系",
+    cool: "クール", warm: "あたたかみ", energetic: "エネルギッシュ",
+  };
+  const VIDEO_STYLE_LABEL = {
+    simple: "シンプル", pop: "ポップ", cinematic: "シネマティック",
+    vlog: "Vlog風", minimal: "ミニマル", energetic: "エネルギッシュ",
+  };
+  const BGM_LABEL = {
+    upbeat: "アップビート", calm: "落ち着き系", corporate: "コーポレート",
+    cute: "キュート", dramatic: "ドラマチック", none: "BGMなし",
+  };
+
   const PROJECT = savedProject || {
     id: 1, name: "カフェ Lumière", industry: "restaurant", color: "orange",
     tone: "warm", targets: ["f_30","family"], videoStyle: "vlog", bgm: "calm",
@@ -719,11 +738,14 @@ export default function GeneratePage() {
         {phase === "input" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {/* プロジェクト */}
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#fff7ed", borderRadius: "12px", padding: "12px 14px", border: "1px solid #fed7aa" }}>
-              <span style={{ fontSize: "22px" }}>🍽</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", background: brandAccent + "12", borderRadius: "12px", padding: "12px 14px", border: `1px solid ${brandAccent}44` }}>
+              <span style={{ fontSize: "22px" }}>{INDUSTRY_ICON[PROJECT.industry] || "📦"}</span>
               <div>
-                <div style={{ fontSize: "13px", fontWeight: 800, color: "#f97316" }}>カフェ Lumière</div>
-                <div style={{ fontSize: "11px", color: "#9ca3af" }}>あたたかみ · Vlog風 · 落ち着き系BGM</div>
+                <div style={{ fontSize: "13px", fontWeight: 800, color: brandAccent }}>{PROJECT.name}</div>
+                <div style={{ fontSize: "11px", color: "#9ca3af" }}>
+                  {[TONE_LABEL[PROJECT.tone], VIDEO_STYLE_LABEL[PROJECT.videoStyle], BGM_LABEL[PROJECT.bgm] && BGM_LABEL[PROJECT.bgm] + "BGM"]
+                    .filter(Boolean).join(" · ") || "ブランド設定未指定"}
+                </div>
               </div>
             </div>
 
