@@ -6,7 +6,81 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { describeProject } from "./_labels.js";
-import { CAPTION_STYLE_IDS, ROLE_DEFAULT_STYLE, styleCatalogText } from "./_captionStyles.js";
+
+// ── テロップスタイル50種のカタログ ──────────────────────────
+// 本来は ./_captionStyles.js に分けていたが、原因不明のまま
+// 「ファイルは存在する・デプロイも最新なのにimportでexportが
+// 見つからない」というエラーが解消しなかったため、ファイルを
+// またぐ読み込みそのものをやめて、このファイルの中に直接埋め込む。
+// 見た目（色・縁取り・フォント）の定義は src/lib/captionStyles.json 側にある。
+// IDと用途の説明はそちらと必ず一致させること。IDを増減するときは両方を直す。
+const CAPTION_STYLE_CATALOG = [
+  { id: "CJ_S001", label: "ゴシック_赤",   use: "定番。読みやすさ優先の基本テロップ" },
+  { id: "CJ_S002", label: "ゴシック_黄",   use: "定番。明るく目に入りやすい" },
+  { id: "CJ_S003", label: "ゴシック_青",   use: "定番。落ち着いた印象・信頼感" },
+  { id: "CJ_S004", label: "ポップ_赤",     use: "太くて元気。若年層向け・テンポの速い動画" },
+  { id: "CJ_S005", label: "ポップ_黄",     use: "太くて元気。キャンペーン・お得情報" },
+  { id: "CJ_S006", label: "ポップ_青",     use: "太くて元気。爽やか・清潔感" },
+  { id: "CJ_S007", label: "ふとかわ_赤",   use: "太い丸文字。かわいい・親しみやすい" },
+  { id: "CJ_S008", label: "ふとかわ_緑",   use: "太い丸文字。ナチュラル・健康" },
+  { id: "CJ_S009", label: "ふとかわ_青",   use: "太い丸文字。やわらかい・安心感" },
+  { id: "CJ_S010", label: "まるゴシ_赤",   use: "細めの丸ゴシック。上品なかわいさ" },
+  { id: "CJ_S011", label: "まるゴシ_黄",   use: "細めの丸ゴシック。やさしい印象" },
+  { id: "CJ_S012", label: "まるゴシ_青",   use: "細めの丸ゴシック。落ち着いたかわいさ" },
+  { id: "CJ_S013", label: "ゴシ強調_黒",   use: "黒＋白フチ。どんな映像でも読める万能型" },
+  { id: "CJ_S014", label: "ゴシ強調_赤",   use: "赤＋白フチ。冒頭の引きに強い" },
+  { id: "CJ_S015", label: "ゴシ強調_青",   use: "青＋白フチ。行動喚起に落ち着きを出す" },
+  { id: "CJ_S016", label: "ゴシグラデ_黒", use: "黒のグラデ。重厚・高級感のある補足" },
+  { id: "CJ_S017", label: "ゴシグラデ_赤", use: "赤〜橙のグラデ。熱量を出したいとき" },
+  { id: "CJ_S018", label: "ゴシグラデ_青", use: "水色〜青のグラデ。爽快感・清涼感" },
+  { id: "CJ_S019", label: "怒り1",         use: "筆文字＋赤い滲み。強い怒り・告発トーン" },
+  { id: "CJ_S020", label: "怒り2",         use: "明朝の赤。憤り・強い否定" },
+  { id: "CJ_S021", label: "怒り3",         use: "黒＋黄緑の発光。毒気のあるツッコミ" },
+  { id: "CJ_S022", label: "ツッコミ1",     use: "金〜橙の極太。大声のツッコミ" },
+  { id: "CJ_S023", label: "ツッコミ2",     use: "黒＋黄フチ。冷たく突き放すツッコミ" },
+  { id: "CJ_S024", label: "ツッコミ3",     use: "紺＋黄フチ＋赤発光。勢いのあるツッコミ" },
+  { id: "CJ_S025", label: "恐怖1",         use: "紫の明朝。不穏・ホラー寄りの導入" },
+  { id: "CJ_S026", label: "恐怖2",         use: "黒＋赤発光。危険・警告" },
+  { id: "CJ_S027", label: "恐怖3",         use: "紫＋黒フチ。妖しさ・怪しい話題" },
+  { id: "CJ_S028", label: "2色1",          use: "黒＋水色のずらし影。ポップで軽快" },
+  { id: "CJ_S029", label: "2色2",          use: "黒＋緑のずらし影。カジュアル" },
+  { id: "CJ_S030", label: "ストライプ1",   use: "水色×ピンクの縞。にぎやか・イベント告知" },
+  { id: "CJ_S031", label: "ストライプ2",   use: "青紫×ピンクの縞。ポップで甘い印象" },
+  { id: "CJ_S032", label: "蛍光_ピンク",   use: "白＋ピンクのネオン発光。夜・暗い映像で映える" },
+  { id: "CJ_S033", label: "蛍光_ブルー",   use: "白＋青のネオン発光。テック・近未来" },
+  { id: "CJ_S034", label: "色っぽい",       use: "淡いピンクの明朝。やわらかく艶っぽい" },
+  { id: "CJ_S035", label: "セクシー",       use: "白＋淡紫の発光。大人っぽい・美容向け" },
+  { id: "CJ_S036", label: "カッコイイ",     use: "白〜水色のグラデ。スタイリッシュ・クール" },
+  { id: "CJ_S037", label: "強調_赤",       use: "明朝の赤＋二重フチ。最も強い主役" },
+  { id: "CJ_S038", label: "強調_青",       use: "明朝の青＋二重フチ。信頼感のある主役" },
+  { id: "CJ_S039", label: "拒否",          use: "くすんだ青灰。否定・NG例の提示" },
+  { id: "CJ_S040", label: "しんどい",       use: "灰色のグラデ。疲れ・共感を誘う悩みの提示" },
+  { id: "CJ_S041", label: "目立つ_赤",     use: "極太明朝の赤。価格・数字を一撃で見せる" },
+  { id: "CJ_S042", label: "目立つ_緑",     use: "極太明朝の緑。お得・安心・成果" },
+  { id: "CJ_S043", label: "目立つ_青",     use: "極太明朝の青。実績・データの提示" },
+  { id: "CJ_S044", label: "金",            use: "本格的な金の質感。高級・特別感・受賞" },
+  { id: "CJ_S045", label: "銀",            use: "銀の質感。上質・洗練・2位表現" },
+  { id: "CJ_S046", label: "銅",            use: "銅の質感。温かみのある高級感・3位表現" },
+  { id: "CJ_S047", label: "あっさり金",     use: "細めの金。控えめな高級感・ミニマル向け" },
+  { id: "CJ_S048", label: "あっさり銀",     use: "細めの銀。上品・余白を活かす場面" },
+  { id: "CJ_S049", label: "派手金",         use: "極太の金＋発光。セール・キャンペーンの主役" },
+  { id: "CJ_S050", label: "レインボー",     use: "虹色グラデの斜体。祝い・記念・楽しさの最大化" },
+];
+
+const CAPTION_STYLE_IDS = new Set(CAPTION_STYLE_CATALOG.map(s => s.id));
+
+/** role ごとの既定スタイル（AIが選ばなかった・不正なIDを返したときの受け皿） */
+const ROLE_DEFAULT_STYLE = {
+  hook:  "CJ_S014",
+  punch: "CJ_S037",
+  info:  "CJ_S013",
+  cta:   "CJ_S015",
+};
+
+/** プロンプトに埋め込む一覧テキスト */
+function styleCatalogText() {
+  return CAPTION_STYLE_CATALOG.map(s => `${s.id}｜${s.label}｜${s.use}`).join("\n");
+}
 
 const MODEL = "claude-sonnet-4-6";
 
