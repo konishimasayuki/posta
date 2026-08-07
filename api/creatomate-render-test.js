@@ -17,7 +17,13 @@ import { creatomateFetch, getTemplateId } from "./_creatomate.js";
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { videoUrl, text = "テスト表示", duration = 5 } = req.body || {};
+  const {
+    videoUrl,
+    text = "テスト表示",
+    duration = 5,
+    hookFillColor,    // captionStyles.json の fill に相当
+    hookStrokeColor,  // captionStyles.json の stroke[1] に相当
+  } = req.body || {};
 
   if (!videoUrl) {
     return res.status(400).json({ error: "videoUrl が必要です" });
@@ -31,15 +37,21 @@ export default async function handler(req, res) {
     // レイヤー名とそのまま一致させる必要がある。
     // duration はテンプレート全体（トップレベル）のプロパティなので、
     // 要素名を付けずそのまま指定する。
+    const modifications = {
+      "background.source": videoUrl,
+      "hook.text": text,
+      "duration": Number(duration) || 5,
+    };
+
+    // 色は指定があるときだけ上書きする（無ければテンプレートの既定色のまま）
+    if (hookFillColor)   modifications["hook.fill_color"] = hookFillColor;
+    if (hookStrokeColor) modifications["hook.stroke_color"] = hookStrokeColor;
+
     const data = await creatomateFetch("/renders", {
       method: "POST",
       body: JSON.stringify({
         template_id: templateId,
-        modifications: {
-          "background.source": videoUrl,
-          "hook.text": text,
-          "duration": Number(duration) || 5,
-        },
+        modifications,
       }),
     });
 
