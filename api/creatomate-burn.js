@@ -24,8 +24,20 @@
 // 送ってもCreatomate側で無視されるだけで実害はないが、念のため絞る）。
 
 import { creatomateFetch, getTemplateId } from "./_creatomate.js";
+import { styleIdToModifications } from "./_creatomateStyles.js";
+import { CAPTION_STYLE_DEFS } from "./_captionStyleDefs.js";
 
 const KNOWN_ROLES = new Set(["hook", "punch", "info", "cta"]);
+
+// テンプレート（posta-caption-v1）の各要素の文字サイズ。2026-08-07 実測。
+// 縁取り幅は「文字サイズに対する比率」で持っているため、実際のvmin値に
+// 変換するのに使う。テンプレート側のfont_sizeを変えたら、ここも直すこと。
+const ELEMENT_FONT_SIZE_VMIN = {
+  hook: 6.94,
+  info: 6.94,
+  cta: 6.94,
+  punch: 16.14,
+};
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
@@ -54,6 +66,8 @@ export default async function handler(req, res) {
     const usedRoles = new Set();
     const skipped = [];
 
+    const degradedNotes = []; // グラデーション簡略化・フォント未検証など、見た目が妥協された箇所の記録
+
     for (const cap of captions) {
       if (!cap || typeof cap.text !== "string" || !cap.text.trim()) continue;
       if (!KNOWN_ROLES.has(cap.role)) continue;
@@ -71,6 +85,23 @@ export default async function handler(req, res) {
       modifications[`${cap.role}.text`] = cap.text.trim();
       modifications[`${cap.role}.time`] = start;
       modifications[`${cap.role}.duration`] = Number(dur.toFixed(2));
+
+      // 色・フォントを styleId から自動決定する
+      const styleResult = styleIdToModifications(cap.styleId, cap.role, CAPTION_STYLE_DEFS);
+      for (const [key, value] of Object.entries(styleResult.modifications)) {
+        if (key.endsWith("._strokeWidthRatio")) {
+          // 比率のまま送るとCreatomateが理解できないため、
+          // この要素の実際の文字サイズ(vmin)を掛けて絶対値に変換する
+          const fontSizeVmin = ELEMENT_FONT_SIZE_VMIN[cap.role] ?? 8;
+          const strokeVmin = (value * fontSizeVmin).toFixed(2);
+          modifications[`${cap.role}.stroke_width`] = `${strokeVmin} vmin`;
+        } else {
+          modifications[key] = value;
+        }
+      }
+      if (styleResult.degraded) {
+        degradedNotes.push({ role: cap.role, styleId: cap.styleId, reason: styleResult.reason });
+      }
     }
 
     const data = await creatomateFetch("/renders", {
@@ -89,6 +120,7 @@ export default async function handler(req, res) {
       url: render?.url || null,
       modifications, // デバッグ用。実際に送った内容をそのまま返す
       skipped,        // 同じroleが重複していて焼き込まれなかったテロップ（テンプレートの枠不足）
+      degradedNotes,  // グラデーション簡略化・フォント未検証などで見た目が妥協された箇所
     });
 
   } catch (err) {
