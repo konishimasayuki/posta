@@ -23,6 +23,7 @@ export default async function handler(req, res) {
     duration = 5,
     hookFillColor,    // captionStyles.json の fill に相当
     hookStrokeColor,  // captionStyles.json の stroke[1] に相当
+    hookFontFamily,   // 例："Dela Gothic One"
   } = req.body || {};
 
   if (!videoUrl) {
@@ -43,9 +44,10 @@ export default async function handler(req, res) {
       "duration": Number(duration) || 5,
     };
 
-    // 色は指定があるときだけ上書きする（無ければテンプレートの既定色のまま）
+    // 色・書体は指定があるときだけ上書きする（無ければテンプレートの既定のまま）
     if (hookFillColor)   modifications["hook.fill_color"] = hookFillColor;
     if (hookStrokeColor) modifications["hook.stroke_color"] = hookStrokeColor;
+    if (hookFontFamily)  modifications["hook.font_family"] = hookFontFamily;
 
     const data = await creatomateFetch("/renders", {
       method: "POST",
