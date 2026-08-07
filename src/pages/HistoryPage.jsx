@@ -238,7 +238,9 @@ function DetailModal({ item, onClose }) {
               <div style={{ fontSize: "12px", fontWeight: 800, color: "#374151", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
                 🎬 生成された動画
                 <span style={{ fontSize: "10px", fontWeight: 600, color: "#9ca3af" }}>· {DURATION_LABEL[item.duration]}</span>
-                {item.captions?.length > 0 && (
+                {/* 焼き込み済みの動画は文字を消せない（映像そのものに含まれるため）
+                    ので、トグル自体を出さない */}
+                {!item.isBurned && item.captions?.length > 0 && (
                   <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
                     <input
                       type="checkbox"
@@ -264,7 +266,9 @@ function DetailModal({ item, onClose }) {
                       onTimeUpdate={e => setVideoTime(e.target.currentTime)}
                       style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                     />
-                    {showCaptions && item.captions?.length > 0 && (
+                    {/* 焼き込み済みの動画は、文字がすでに映像そのものに含まれているため
+                        プレビュー用のCaptionOverlayは重ねない（二重表示防止） */}
+                    {!item.isBurned && showCaptions && item.captions?.length > 0 && (
                       <CaptionOverlay
                         captions={item.captions}
                         currentTime={videoTime}
