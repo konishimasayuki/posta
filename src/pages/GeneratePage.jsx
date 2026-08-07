@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import CaptionOverlay from "../components/CaptionOverlay.jsx";
-import CaptionStylePicker from "../components/CaptionStylePicker.jsx";
 import { resolveAccent, resolveFont } from "../lib/fonts.js";
-import { isKnownStyleId, getCaptionStyle, fontLabel } from "../lib/captionStyles.js";
 
 const PLATFORMS = [
   { id: "tiktok",    label: "TikTok",    icon: "🎵", accent: "#fe2c55", bg: "#fff0f3" },
@@ -318,7 +316,9 @@ export default function GeneratePage() {
   const [neta, setNeta] = useState("");
   const [generatedTexts, setGeneratedTexts] = useState({});
   const [uploadedImages, setUploadedImages] = useState([]); // {file, url, base64}
-  const [videoUrl, setVideoUrl] = useState(null);        // 完成した動画のURL
+  const [videoUrl, setVideoUrl] = useState(null);        // Klingが生成した、文字なしの動画URL
+  const [burnedVideoUrl, setBurnedVideoUrl] = useState(null); // テロップ焼き込み後の動画URL（あればこちらを優先表示）
+  const [burnError, setBurnError] = useState(null);       // 焼き込みに失敗した場合の理由
   const [videoError, setVideoError] = useState(null);    // 動画生成の失敗理由
   const [klingPrompt, setKlingPrompt] = useState("");    // 生成に使った英語プロンプト
   const [videoElapsed, setVideoElapsed] = useState(0);   // 動画生成の経過秒数
@@ -337,6 +337,7 @@ export default function GeneratePage() {
   // setStateの反映を待たずに最新値を参照するためのref
   const generatedTextsRef = useRef({});
   const videoUrlRef = useRef(null);
+  const burnedVideoUrlRef = useRef(null);
   const klingPromptRef = useRef("");
   const captionsRef = useRef([]);
 
@@ -363,8 +364,8 @@ export default function GeneratePage() {
   };
 
   const LOAD_STEPS = generateVideo
-    ? ["ブランド設定を読み込み中", "投稿文を生成中", "動画プロンプトを生成中", "オリジナル動画を生成中", "テロップを設計中"]
-    : ["ブランド設定を読み込み中", "投稿文を生成中", "仕上げ処理中", "仕上げ処理中", "仕上げ処理中"];
+    ? ["ブランド設定を読み込み中", "投稿文を生成中", "動画プロンプトを生成中", "オリジナル動画を生成中", "テロップを設計中", "テロップを焼き込み中"]
+    : ["ブランド設定を読み込み中", "投稿文を生成中", "仕上げ処理中", "仕上げ処理中", "仕上げ処理中", "仕上げ処理中"];
 
   const toggle = (id) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
@@ -425,6 +426,31 @@ export default function GeneratePage() {
     throw new Error("動画の生成に時間がかかりすぎています。しばらくしてから再度お試しください");
   };
 
+  // Creatomateの焼き込み完了を待つ。Klingのpoll(succeed)と綴りが違う点に注意（succeeded）
+  const pollBurn = async (renderId) => {
+    const INTERVAL = 3000;  // 3秒おき（Creatomateは今日の実測で数秒〜十数秒程度で終わっていた）
+    const MAX_TRIES = 40;   // 最大2分
+    let consecutiveErrors = 0;
+
+    for (let i = 0; i < MAX_TRIES; i++) {
+      await new Promise(r => setTimeout(r, INTERVAL));
+
+      try {
+        const res = await fetch(`/api/creatomate-status?renderId=${encodeURIComponent(renderId)}`);
+        const data = await res.json();
+
+        if (data.status === "succeeded") return data.url;
+        if (data.status === "failed") throw new Error(data.error || "テロップの焼き込みに失敗しました");
+        consecutiveErrors = 0;
+      } catch (err) {
+        consecutiveErrors++;
+        console.error("burn poll error:", err);
+        if (consecutiveErrors >= 3) throw err;
+      }
+    }
+    throw new Error("テロップの焼き込みに時間がかかりすぎています");
+  };
+
   const handleGenerate = async () => {
     setPhase("loading");
     setLoadStep(0);
@@ -433,10 +459,13 @@ export default function GeneratePage() {
     setVideoElapsed(0);
     setCaptions([]);
     setVideoTime(0);
+    setBurnedVideoUrl(null);
+    setBurnError(null);
     videoUrlRef.current = null;
     generatedTextsRef.current = {};
     klingPromptRef.current = "";
     captionsRef.current = [];
+    burnedVideoUrlRef.current = null;
 
     const wait = ms => new Promise(r => setTimeout(r, ms));
     const imagePayload = uploadedImages.map(img => ({ base64: img.base64, mediaType: img.mediaType }));
@@ -516,6 +545,7 @@ export default function GeneratePage() {
 
       // ── STEP 4: 仕上げ処理中（テロップを設計） ──
       setLoadStep(4);
+      let designedCaptions = [];
       try {
         const res = await fetch("/api/generate-captions", {
           method: "POST",
@@ -529,6 +559,7 @@ export default function GeneratePage() {
         });
         const data = await res.json();
         if (data.captions?.length) {
+          designedCaptions = data.captions;
           setCaptions(data.captions);
           captionsRef.current = data.captions;
         } else {
@@ -536,6 +567,37 @@ export default function GeneratePage() {
         }
       } catch (err) {
         console.error("captions fetch error:", err);
+      }
+
+      // ── STEP 5: テロップを焼き込み中 ──
+      // Klingの動画（文字なし）と、テロップ設計の両方が揃っている場合だけ実行する。
+      // 焼き込みが失敗しても、文字なしの動画自体は既に手元にあるので、
+      // ここで全体を止めずに videoUrl のまま結果画面に進む（フォールバック）。
+      setLoadStep(5);
+      if (videoUrlRef.current && designedCaptions.length > 0) {
+        try {
+          const burnRes = await fetch("/api/creatomate-burn", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              videoUrl: videoUrlRef.current,
+              videoDuration: DURATION_SECONDS[duration] || 5,
+              captions: designedCaptions,
+            }),
+          });
+          const burnData = await burnRes.json();
+
+          if (!burnRes.ok || !burnData.renderId) {
+            throw new Error(burnData.error || "焼き込みを開始できませんでした");
+          }
+          const finalUrl = await pollBurn(burnData.renderId);
+          setBurnedVideoUrl(finalUrl);
+          burnedVideoUrlRef.current = finalUrl;
+        } catch (err) {
+          console.error("burn error:", err);
+          setBurnError(err.message || "テロップの焼き込みに失敗しました");
+          // videoUrl（文字なし）はそのまま残っているので、結果画面は表示できる
+        }
       }
     } else {
       // 動画を作らない場合はステップだけ進めて自然に見せる
@@ -553,8 +615,13 @@ export default function GeneratePage() {
     // ── 履歴を保存 ──
     if (currentUser?.id) {
       // この時点の生成結果を確実に拾う
+      // 焼き込み済みの動画があればそちらを優先する。文字が既に動画本体に
+      // 含まれているため、履歴画面側でCaptionOverlayを二重表示しないよう
+      // isBurned フラグも一緒に残しておく。
       const finalTexts = generatedTextsRef.current;
-      const finalVideo = videoUrlRef.current;
+      const finalRawVideo = videoUrlRef.current;
+      const finalBurnedVideo = burnedVideoUrlRef.current;
+      const finalVideo = finalBurnedVideo || finalRawVideo;
 
       const historyItem = {
         id: Date.now(),
@@ -570,6 +637,7 @@ export default function GeneratePage() {
         duration,
         videoUrl: finalVideo || null,
         videoThumb: finalVideo || null,
+        isBurned: !!finalBurnedVideo, // true: 文字は動画に焼き込み済み / false: 未焼き込み（プレビュー描画が必要）
         klingPrompt: klingPromptRef.current || "",
         captions: captionsRef.current || [],
         brand: {
@@ -638,18 +706,6 @@ export default function GeneratePage() {
   const updateCaptionText = (index, text) => {
     setCaptions(prev => {
       const next = prev.map((c, i) => i === index ? { ...c, text: text.slice(0, 40) } : c);
-      captionsRef.current = next;
-      return next;
-    });
-  };
-
-  // 装飾スタイルを選ぶモーダルを開いているテロップの番号（未表示は null）
-  const [stylePickerIndex, setStylePickerIndex] = useState(null);
-
-  // AIが選んだ装飾スタイルを手動で差し替える
-  const updateCaptionStyle = (index, styleId) => {
-    setCaptions(prev => {
-      const next = prev.map((c, i) => i === index ? { ...c, styleId } : c);
       captionsRef.current = next;
       return next;
     });
@@ -1107,9 +1163,9 @@ export default function GeneratePage() {
                 🎬 生成された動画
                 <span style={{ fontSize: "10px", fontWeight: 400, color: "#9ca3af" }}>· Posta AI · 9:16</span>
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}>
-                  <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: videoUrl ? "#10b981" : "#f59e0b" }} />
-                  <span style={{ fontSize: "10px", color: videoUrl ? "#10b981" : "#f59e0b", fontWeight: 700 }}>
-                    {videoUrl ? "生成完了" : "デモ表示"}
+                  <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: burnedVideoUrl ? "#10b981" : videoUrl ? "#f59e0b" : "#f59e0b" }} />
+                  <span style={{ fontSize: "10px", color: burnedVideoUrl ? "#10b981" : "#f59e0b", fontWeight: 700 }}>
+                    {burnedVideoUrl ? "テロップ焼き込み済み" : videoUrl ? "テロップ未焼き込み" : "デモ表示"}
                   </span>
                 </div>
               </div>
@@ -1119,6 +1175,14 @@ export default function GeneratePage() {
                 <div style={{ marginBottom: "12px", padding: "10px 12px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", fontSize: "11px", color: "#92400e", lineHeight: 1.7 }}>
                   ⚠️ 動画の生成に失敗したため、デモ映像を表示しています<br />
                   <span style={{ color: "#b45309", fontSize: "10px" }}>{videoError}</span>
+                </div>
+              )}
+
+              {/* テロップ焼き込みに失敗した場合のお知らせ（動画自体は文字なしで残っている） */}
+              {!videoError && burnError && (
+                <div style={{ marginBottom: "12px", padding: "10px 12px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", fontSize: "11px", color: "#92400e", lineHeight: 1.7 }}>
+                  ⚠️ テロップの焼き込みに失敗したため、文字なしの動画を表示しています<br />
+                  <span style={{ color: "#b45309", fontSize: "10px" }}>{burnError}</span>
                 </div>
               )}
 
@@ -1135,14 +1199,16 @@ export default function GeneratePage() {
                     <>
                       <video
                         ref={videoRef}
-                        src={videoUrl}
+                        src={burnedVideoUrl || videoUrl}
                         controls
                         loop
                         playsInline
                         onTimeUpdate={e => setVideoTime(e.target.currentTime)}
                         style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                       />
-                      {showCaptions && (
+                      {/* 焼き込み済みなら文字は動画本体に含まれるため、
+                          プレビュー用のCaptionOverlayは二重表示になるので出さない */}
+                      {!burnedVideoUrl && showCaptions && (
                         <CaptionOverlay
                           captions={captions}
                           currentTime={videoTime}
@@ -1187,7 +1253,7 @@ export default function GeneratePage() {
 
                   {videoUrl ? (
                     <button
-                      onClick={() => handleSaveVideo(videoUrl)}
+                      onClick={() => handleSaveVideo(burnedVideoUrl || videoUrl)}
                       disabled={saving}
                       style={{
                         display: "block", width: "100%", padding: "9px", borderRadius: "9px", border: "none",
@@ -1264,64 +1330,32 @@ export default function GeneratePage() {
                         const roleMeta = ROLE_META[cap.role] || ROLE_META.info;
                         return (
                           <div key={cap.id} style={{
-                            display: "flex", flexDirection: "column", gap: "6px",
+                            display: "flex", alignItems: "center", gap: "8px",
                             padding: "8px 10px", borderRadius: "10px",
                             background: "#f8f9fb", border: "1px solid #f3f4f6",
                           }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                              <div style={{ fontSize: "9px", fontWeight: 700, color: "#9ca3af", width: "52px", flexShrink: 0 }}>
-                                {cap.start}〜{cap.end}s
-                              </div>
-                              <span style={{
-                                fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "20px",
-                                background: roleMeta.bg, color: roleMeta.color, flexShrink: 0, whiteSpace: "nowrap",
-                              }}>
-                                {roleMeta.label}
-                              </span>
-                              <input
-                                value={cap.text}
-                                onChange={e => updateCaptionText(i, e.target.value)}
-                                style={{
-                                  flex: 1, minWidth: 0, padding: "5px 8px", borderRadius: "7px",
-                                  border: "1px solid #e5e7eb", fontSize: "12px", fontFamily: "inherit",
-                                  color: "#111827", outline: "none",
-                                }}
-                              />
-                              <button onClick={() => seekTo(cap.start)} title="ここから再生" style={{
-                                flexShrink: 0, width: "26px", height: "26px", borderRadius: "7px",
-                                border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: "10px",
-                              }}>▶</button>
+                            <div style={{ fontSize: "9px", fontWeight: 700, color: "#9ca3af", width: "52px", flexShrink: 0 }}>
+                              {cap.start}〜{cap.end}s
                             </div>
-
-                            {/* 装飾スタイル（AIが選んだものを手動で差し替えられる） */}
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingLeft: "60px" }}>
-                              <span style={{ fontSize: "9px", color: "#9ca3af", flexShrink: 0 }}>装飾</span>
-                              <button
-                                onClick={() => setStylePickerIndex(i)}
-                                style={{
-                                  flex: 1, minWidth: 0, padding: "6px 10px", borderRadius: "7px",
-                                  border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer",
-                                  fontFamily: "inherit", textAlign: "left",
-                                  display: "flex", alignItems: "center", gap: "6px",
-                                }}
-                              >
-                                {isKnownStyleId(cap.styleId) ? (
-                                  <>
-                                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#374151" }}>
-                                      {getCaptionStyle(cap.styleId).label}
-                                    </span>
-                                    <span style={{ fontSize: "10px", color: "#9ca3af" }}>
-                                      {fontLabel(getCaptionStyle(cap.styleId))}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <span style={{ fontSize: "11px", color: "#9ca3af" }}>ブランド設定に従う</span>
-                                )}
-                                <span style={{ marginLeft: "auto", fontSize: "10px", color: "#f97316", fontWeight: 700, flexShrink: 0 }}>
-                                  変更
-                                </span>
-                              </button>
-                            </div>
+                            <span style={{
+                              fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "20px",
+                              background: roleMeta.bg, color: roleMeta.color, flexShrink: 0, whiteSpace: "nowrap",
+                            }}>
+                              {roleMeta.label}
+                            </span>
+                            <input
+                              value={cap.text}
+                              onChange={e => updateCaptionText(i, e.target.value)}
+                              style={{
+                                flex: 1, minWidth: 0, padding: "5px 8px", borderRadius: "7px",
+                                border: "1px solid #e5e7eb", fontSize: "12px", fontFamily: "inherit",
+                                color: "#111827", outline: "none",
+                              }}
+                            />
+                            <button onClick={() => seekTo(cap.start)} title="ここから再生" style={{
+                              flexShrink: 0, width: "26px", height: "26px", borderRadius: "7px",
+                              border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: "10px",
+                            }}>▶</button>
                           </div>
                         );
                       })}
@@ -1410,16 +1444,6 @@ export default function GeneratePage() {
           </div>
         )}
       </div>
-
-      {/* 装飾スタイルの選択モーダル */}
-      {stylePickerIndex !== null && captions[stylePickerIndex] && (
-        <CaptionStylePicker
-          text={captions[stylePickerIndex].text}
-          value={captions[stylePickerIndex].styleId || ""}
-          onSelect={styleId => updateCaptionStyle(stylePickerIndex, styleId)}
-          onClose={() => setStylePickerIndex(null)}
-        />
-      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
