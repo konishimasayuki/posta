@@ -1,168 +1,74 @@
-// api/_creatomateStyles.js
-// captionStyles.json（konishiさんの50種デザイン設計図）を、
-// Creatomateのmodifications形式に変換するモジュール。
+// api/_captionStyles.js
+// テロップスタイル50種の「IDと用途」だけを持つカタログ。AIに選ばせるために使う。
+// ※ ファイル名の先頭が _ のものは Vercel でAPIエンドポイントにならない
 //
-// 重要な前提：
-//   ・Creatomateのテキスト装飾は「単色＋縁取り＋影」までしか対応できない。
-//     グラデーション・ストライプ・金銀銅のような質感は再現できない。
-//   ・フォントは「Creatomate側に実際にアップロード済みで、
-//     かつ太さ（weight）が一致するもの」だけが安全に使える。
-//     アップロードしていない・太さが合わないフォントを指定すると、
-//     Creatomateはエラーを出さずに黙って別のフォントへ差し替える
-//     （2026-08-07 の実験で実際に確認済み）。
+// 見た目（色・縁取り・フォント）の定義は src/lib/captionStyles.json 側にある。
+// IDと用途の説明はそちらと必ず一致させること。IDを増減するときは両方を直す。
 
-/**
- * フォントの対応表。
- * verified: true のものだけを実際に使う。
- * false のものは「まだConfirmしていない」ことを示す安全弁で、
- * うっかり本番で使わないようにする。
- *
- * 新しいフォントをCreatomateにアップロードして動作確認できたら、
- * ここに追記して verified を true にすること。
- */
-export const CREATOMATE_FONTS = {
-  // captionStyles.json の fonts.pop に対応。2026-08-07 に実機確認済み。
-  pop: {
-    family: "Dela Gothic One",
-    weight: "400", // Regularのみ存在。700を指定すると黙って別フォントに化ける
-    verified: true,
-    verifiedAt: "2026-08-07",
-  },
-  gothic: {
-    family: "Noto Sans JP",
-    weight: "700",
-    verified: false, // まだCreatomateにアップロード・動作確認していない
-  },
-  // captionStyles.json の fonts.round に対応。2026-08-07 に実機確認済み。
-  // Creatomate上では 300/400/500/700/900 が選択可能。900（Black）を使用。
-  round: {
-    family: "Zen Maru Gothic",
-    weight: "900",
-    verified: true,
-    verifiedAt: "2026-08-07",
-  },
-  reggae: {
-    family: "Reggae One",
-    weight: "400",
-    verified: false,
-  },
-  // captionStyles.json の fonts.mincho に対応。2026-08-07 に実機確認済み。
-  // ExtraBold（800）のみアップロード済み。
-  mincho: {
-    family: "Shippori Mincho",
-    weight: "800",
-    verified: true,
-    verifiedAt: "2026-08-07",
-  },
-  brush: {
-    family: "Yuji Syuku",
-    weight: "400",
-    verified: false,
-  },
+export const CAPTION_STYLE_CATALOG = [
+  { id: "CJ_S001", label: "ゴシック_赤",   use: "定番。読みやすさ優先の基本テロップ" },
+  { id: "CJ_S002", label: "ゴシック_黄",   use: "定番。明るく目に入りやすい" },
+  { id: "CJ_S003", label: "ゴシック_青",   use: "定番。落ち着いた印象・信頼感" },
+  { id: "CJ_S004", label: "ポップ_赤",     use: "太くて元気。若年層向け・テンポの速い動画" },
+  { id: "CJ_S005", label: "ポップ_黄",     use: "太くて元気。キャンペーン・お得情報" },
+  { id: "CJ_S006", label: "ポップ_青",     use: "太くて元気。爽やか・清潔感" },
+  { id: "CJ_S007", label: "ふとかわ_赤",   use: "太い丸文字。かわいい・親しみやすい" },
+  { id: "CJ_S008", label: "ふとかわ_緑",   use: "太い丸文字。ナチュラル・健康" },
+  { id: "CJ_S009", label: "ふとかわ_青",   use: "太い丸文字。やわらかい・安心感" },
+  { id: "CJ_S010", label: "まるゴシ_赤",   use: "細めの丸ゴシック。上品なかわいさ" },
+  { id: "CJ_S011", label: "まるゴシ_黄",   use: "細めの丸ゴシック。やさしい印象" },
+  { id: "CJ_S012", label: "まるゴシ_青",   use: "細めの丸ゴシック。落ち着いたかわいさ" },
+  { id: "CJ_S013", label: "ゴシ強調_黒",   use: "黒＋白フチ。どんな映像でも読める万能型" },
+  { id: "CJ_S014", label: "ゴシ強調_赤",   use: "赤＋白フチ。冒頭の引きに強い" },
+  { id: "CJ_S015", label: "ゴシ強調_青",   use: "青＋白フチ。行動喚起に落ち着きを出す" },
+  { id: "CJ_S016", label: "ゴシグラデ_黒", use: "黒のグラデ。重厚・高級感のある補足" },
+  { id: "CJ_S017", label: "ゴシグラデ_赤", use: "赤〜橙のグラデ。熱量を出したいとき" },
+  { id: "CJ_S018", label: "ゴシグラデ_青", use: "水色〜青のグラデ。爽快感・清涼感" },
+  { id: "CJ_S019", label: "怒り1",         use: "筆文字＋赤い滲み。強い怒り・告発トーン" },
+  { id: "CJ_S020", label: "怒り2",         use: "明朝の赤。憤り・強い否定" },
+  { id: "CJ_S021", label: "怒り3",         use: "黒＋黄緑の発光。毒気のあるツッコミ" },
+  { id: "CJ_S022", label: "ツッコミ1",     use: "金〜橙の極太。大声のツッコミ" },
+  { id: "CJ_S023", label: "ツッコミ2",     use: "黒＋黄フチ。冷たく突き放すツッコミ" },
+  { id: "CJ_S024", label: "ツッコミ3",     use: "紺＋黄フチ＋赤発光。勢いのあるツッコミ" },
+  { id: "CJ_S025", label: "恐怖1",         use: "紫の明朝。不穏・ホラー寄りの導入" },
+  { id: "CJ_S026", label: "恐怖2",         use: "黒＋赤発光。危険・警告" },
+  { id: "CJ_S027", label: "恐怖3",         use: "紫＋黒フチ。妖しさ・怪しい話題" },
+  { id: "CJ_S028", label: "2色1",          use: "黒＋水色のずらし影。ポップで軽快" },
+  { id: "CJ_S029", label: "2色2",          use: "黒＋緑のずらし影。カジュアル" },
+  { id: "CJ_S030", label: "ストライプ1",   use: "水色×ピンクの縞。にぎやか・イベント告知" },
+  { id: "CJ_S031", label: "ストライプ2",   use: "青紫×ピンクの縞。ポップで甘い印象" },
+  { id: "CJ_S032", label: "蛍光_ピンク",   use: "白＋ピンクのネオン発光。夜・暗い映像で映える" },
+  { id: "CJ_S033", label: "蛍光_ブルー",   use: "白＋青のネオン発光。テック・近未来" },
+  { id: "CJ_S034", label: "色っぽい",       use: "淡いピンクの明朝。やわらかく艶っぽい" },
+  { id: "CJ_S035", label: "セクシー",       use: "白＋淡紫の発光。大人っぽい・美容向け" },
+  { id: "CJ_S036", label: "カッコイイ",     use: "白〜水色のグラデ。スタイリッシュ・クール" },
+  { id: "CJ_S037", label: "強調_赤",       use: "明朝の赤＋二重フチ。最も強い主役" },
+  { id: "CJ_S038", label: "強調_青",       use: "明朝の青＋二重フチ。信頼感のある主役" },
+  { id: "CJ_S039", label: "拒否",          use: "くすんだ青灰。否定・NG例の提示" },
+  { id: "CJ_S040", label: "しんどい",       use: "灰色のグラデ。疲れ・共感を誘う悩みの提示" },
+  { id: "CJ_S041", label: "目立つ_赤",     use: "極太明朝の赤。価格・数字を一撃で見せる" },
+  { id: "CJ_S042", label: "目立つ_緑",     use: "極太明朝の緑。お得・安心・成果" },
+  { id: "CJ_S043", label: "目立つ_青",     use: "極太明朝の青。実績・データの提示" },
+  { id: "CJ_S044", label: "金",            use: "本格的な金の質感。高級・特別感・受賞" },
+  { id: "CJ_S045", label: "銀",            use: "銀の質感。上質・洗練・2位表現" },
+  { id: "CJ_S046", label: "銅",            use: "銅の質感。温かみのある高級感・3位表現" },
+  { id: "CJ_S047", label: "あっさり金",     use: "細めの金。控えめな高級感・ミニマル向け" },
+  { id: "CJ_S048", label: "あっさり銀",     use: "細めの銀。上品・余白を活かす場面" },
+  { id: "CJ_S049", label: "派手金",         use: "極太の金＋発光。セール・キャンペーンの主役" },
+  { id: "CJ_S050", label: "レインボー",     use: "虹色グラデの斜体。祝い・記念・楽しさの最大化" },
+];
+
+export const CAPTION_STYLE_IDS = new Set(CAPTION_STYLE_CATALOG.map(s => s.id));
+
+/** role ごとの既定スタイル（AIが選ばなかった・不正なIDを返したときの受け皿） */
+export const ROLE_DEFAULT_STYLE = {
+  hook:  "CJ_S014",
+  punch: "CJ_S037",
+  info:  "CJ_S013",
+  cta:   "CJ_S015",
 };
 
-/** 未確認のフォントを使う場合のフォールバック先（Creatomate標準搭載） */
-const FALLBACK_FONT = { family: "Inter", weight: "700" };
-
-/**
- * captionStyles.json の1スタイル定義から、
- * 指定したCreatomateの要素名（hook/punch/info/cta）向けの
- * modifications断片を作る。
- *
- * @param {object} style  captionStyles.json の styles[n]（例：CJ_S001）
- * @param {string} elementName  "hook" | "punch" | "info" | "cta"
- * @returns {{ modifications: object, degraded: boolean, reason: string|null }}
- *   degraded: グラデーション等で見た目を単色に簡略化した場合 true
- *   reason:   簡略化・フォールバックの理由（ログ・デバッグ用）
- */
-export function styleToModifications(style, elementName) {
-  const modifications = {};
-  let degraded = false;
-  let reason = null;
-
-  // ── フォント ──
-  const fontEntry = CREATOMATE_FONTS[style?.font];
-  if (fontEntry?.verified) {
-    modifications[`${elementName}.font_family`] = fontEntry.family;
-    modifications[`${elementName}.font_weight`] = fontEntry.weight;
-  } else {
-    modifications[`${elementName}.font_family`] = FALLBACK_FONT.family;
-    modifications[`${elementName}.font_weight`] = FALLBACK_FONT.weight;
-    degraded = true;
-    reason = fontEntry
-      ? `フォント「${style.font}」は未検証のためInterで代用`
-      : `フォント「${style?.font}」が対応表に無いためInterで代用`;
-  }
-
-  // ── 塗り色（グラデーション・ストライプは非対応） ──
-  if (typeof style?.fill === "string") {
-    modifications[`${elementName}.fill_color`] = style.fill;
-  } else if (style?.fill && typeof style.fill === "object") {
-    // グラデーション/ストライプの代表色（開始色）だけを単色として使う
-    const approx = extractApproximateColor(style.fill);
-    modifications[`${elementName}.fill_color`] = approx;
-    degraded = true;
-    reason = (reason ? reason + " / " : "") +
-      "グラデーション・ストライプはCreatomateで再現できないため代表色の単色に簡略化";
-  }
-
-  // ── 縁取り（複数の縁取りがあっても、Creatomateは1本しか持てないので最太のものを使う） ──
-  if (Array.isArray(style?.stroke) && style.stroke.length > 0) {
-    const widest = [...style.stroke].sort((a, b) => b[0] - a[0])[0];
-    const [widthRatio, color] = widest;
-    // captionStyles.js側は「文字サイズに対する比率」で縁取り幅を持っているが、
-    // Creatomateは vmin 等の絶対単位を要求する。呼び出し側でサイズを掛け合わせる前提とし、
-    // ここでは比率のまま返す（実際のpx/vmin変換は creatomate-burn.js 側で行う）。
-    modifications[`${elementName}.stroke_color`] = color;
-    modifications[`${elementName}._strokeWidthRatio`] = widthRatio; // 内部用の一時値
-    if (style.stroke.length > 1) {
-      degraded = true;
-      reason = (reason ? reason + " / " : "") + "二重フチはCreatomateで1本に簡略化";
-    }
-  }
-
-  return { modifications, degraded, reason };
-}
-
-/** グラデーション/ストライプ定義から、代表となる単色を1つ取り出す */
-function extractApproximateColor(fillObj) {
-  if (fillObj.stripe?.colors?.length) {
-    return fillObj.stripe.colors[0];
-  }
-  if (typeof fillObj.gradient === "string") {
-    // "linear-gradient(180deg,#fdf3c0 0%,#e2b33c 38%,...)" から最初の色を拾う
-    const match = fillObj.gradient.match(/#[0-9a-fA-F]{3,8}/);
-    if (match) return match[0];
-  }
-  return "#ffffff"; // 万一パースできなければ白にフォールバック
-}
-
-/**
- * styleId（例："CJ_S001"）から、指定した要素名向けのmodificationsを作る。
- * テロップ（generate-captions.jsの出力）は styleId を持っているので、
- * これが実際の呼び出し口になる。
- *
- * @param {string} styleId       例："CJ_S037"
- * @param {string} elementName   "hook" | "punch" | "info" | "cta"
- * @param {object} styleDefs     _captionStyleDefs.js の CAPTION_STYLE_DEFS
- * @param {string} fallbackRole  styleIdが不正だった場合に使う既定スタイル選びの手がかり
- */
-export function styleIdToModifications(styleId, elementName, styleDefs, fallbackRole = "info") {
-  const style = styleDefs[styleId];
-
-  if (!style) {
-    // 不正なstyleIdは、無地の白文字にフォールバックする（焼き込み自体は止めない）
-    return {
-      modifications: {
-        [`${elementName}.fill_color`]: "#ffffff",
-        [`${elementName}.stroke_color`]: "#000000",
-        [`${elementName}.font_family`]: FALLBACK_FONT.family,
-        [`${elementName}.font_weight`]: FALLBACK_FONT.weight,
-      },
-      degraded: true,
-      reason: `styleId「${styleId}」が見つからないため既定の白文字にフォールバック`,
-    };
-  }
-
-  return styleToModifications(style, elementName);
+/** プロンプトに埋め込む一覧テキスト */
+export function styleCatalogText() {
+  return CAPTION_STYLE_CATALOG.map(s => `${s.id}｜${s.label}｜${s.use}`).join("\n");
 }
