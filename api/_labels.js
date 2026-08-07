@@ -83,6 +83,18 @@ const BGM_STYLES = {
   none:      "BGMなし",
 };
 
+// ProjectListPage.jsx の COLORS 定義と同じ値（単一の定義元）
+const COLORS = {
+  purple: { label: "パープル", hex: "#7c3aed" },
+  pink:   { label: "ピンク",   hex: "#db2777" },
+  blue:   { label: "ブルー",   hex: "#2563eb" },
+  green:  { label: "グリーン", hex: "#059669" },
+  orange: { label: "オレンジ", hex: "#ea580c" },
+  red:    { label: "レッド",   hex: "#dc2626" },
+  teal:   { label: "ティール", hex: "#0d9488" },
+  gray:   { label: "モノクロ", hex: "#374151" },
+};
+
 /**
  * プロジェクト設定を日本語のテキストブロックに変換する
  */
@@ -105,6 +117,10 @@ export function describeProject(project = {}) {
   if (project.videoType)     lines.push(`映像タイプ：${VIDEO_TYPES[project.videoType] || project.videoType}`);
   if (project.videoStyle)    lines.push(`映像の雰囲気：${VIDEO_STYLES[project.videoStyle] || project.videoStyle}`);
   if (project.bgm)           lines.push(`BGM：${BGM_STYLES[project.bgm] || project.bgm}`);
+  if (project.color && COLORS[project.color]) {
+    const c = COLORS[project.color];
+    lines.push(`ブランドカラー：${c.label}（${c.hex}）`);
+  }
   if (project.fixedWords)    lines.push(`必ず使う固定ワード：${project.fixedWords}`);
   if (project.bannedWords)   lines.push(`使ってはいけない禁止ワード：${project.bannedWords}`);
 
@@ -120,4 +136,4 @@ export function todayString() {
   return `${d.getMonth() + 1}月${d.getDate()}日（${days[d.getDay()]}）`;
 }
 
-export { INDUSTRIES, TARGETS, TONES, KEIGO, PURPOSES, VIDEO_TYPES, VIDEO_STYLES, BGM_STYLES };
+export { INDUSTRIES, TARGETS, TONES, KEIGO, PURPOSES, VIDEO_TYPES, VIDEO_STYLES, BGM_STYLES, COLORS };
