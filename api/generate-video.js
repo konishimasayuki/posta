@@ -44,12 +44,15 @@ export default async function handler(req, res) {
     duration: resolveDuration(duration, plan),
   };
 
+  // 縦横比は image2video / text2video どちらでも必ず指定する。
+  // これまで image2video のときだけ送っていなかったため、横長の写真を
+  // 素材に使うと、Klingがその写真の縦横比をそのまま引き継いでしまい、
+  // 横長のまま動画が生成される不具合があった（2026-08-07 実機で確認）。
+  body.aspect_ratio = aspectRatio;
+
   if (image) {
     // image2video は image に base64（データURLの接頭辞なし）を渡す
     body.image = image;
-  } else {
-    // text2video のみ縦横比を指定できる
-    body.aspect_ratio = aspectRatio;
   }
 
   try {
