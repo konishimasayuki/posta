@@ -52,6 +52,21 @@ const PLATFORM_META = {
 
 const DURATION_LABEL = { short: "〜15秒", medium: "30〜60秒", long: "1〜3分" };
 
+/**
+ * この動画が「すでに文字を焼き込み済み」かどうかを判定する。
+ *
+ * item.isBurned フラグを最優先で見るが、それが無い（＝この項目が
+ * isBurned フィールドを持つ前に保存された古いデータ）場合でも、
+ * 動画URLの発行元を見て判定する保険をかける。
+ * CreatomateはBackblaze（backblazeb2.com）にファイルを置くため、
+ * KlingのURL（klingai.com）と区別できる。
+ */
+function isBurnedVideo(item) {
+  if (typeof item?.isBurned === "boolean") return item.isBurned;
+  const url = item?.videoUrl || "";
+  return url.includes("backblazeb2.com") || url.includes("creatomate");
+}
+
 function VideoThumb({ color, small }) {
   const size = small ? 56 : 80;
   const isUrl = color && color.startsWith("http");
@@ -240,7 +255,7 @@ function DetailModal({ item, onClose }) {
                 <span style={{ fontSize: "10px", fontWeight: 600, color: "#9ca3af" }}>· {DURATION_LABEL[item.duration]}</span>
                 {/* 焼き込み済みの動画は文字を消せない（映像そのものに含まれるため）
                     ので、トグル自体を出さない */}
-                {!item.isBurned && item.captions?.length > 0 && (
+                {!isBurnedVideo(item) && item.captions?.length > 0 && (
                   <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
                     <input
                       type="checkbox"
@@ -268,7 +283,7 @@ function DetailModal({ item, onClose }) {
                     />
                     {/* 焼き込み済みの動画は、文字がすでに映像そのものに含まれているため
                         プレビュー用のCaptionOverlayは重ねない（二重表示防止） */}
-                    {!item.isBurned && showCaptions && item.captions?.length > 0 && (
+                    {!isBurnedVideo(item) && showCaptions && item.captions?.length > 0 && (
                       <CaptionOverlay
                         captions={item.captions}
                         currentTime={videoTime}
