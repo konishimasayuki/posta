@@ -586,7 +586,15 @@ export default function ProjectListPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8f9fb", fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif", color: "#111827" }}>
       <Toast msg={toast} />
-      <ProjectList projects={projects} onSelect={handleSelect} onNew={() => setModal("new")} onEdit={p => setModal(p)} isDemo={isDemo} />
+      {loading ? (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid #f3f4f6", borderTop: "3px solid #f97316", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+            <div style={{ fontSize: "13px", color: "#9ca3af" }}>読み込み中...</div>
+          </div>
+        </div>
+      ) : (
+        <ProjectList projects={projects} onSelect={handleSelect} onNew={() => setModal("new")} onEdit={p => setModal(p)} isDemo={isDemo} />
       )}
       {modal && <BrandModal project={modal === "new" ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
     </div>
