@@ -56,6 +56,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         template_id: templateId,
         modifications,
+        render_scale: 1, // テンプレート既定の0.375だと文字がボヤけるためフルサイズに固定
       }),
     });
 
