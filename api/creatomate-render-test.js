@@ -24,6 +24,7 @@ export default async function handler(req, res) {
     hookFillColor,    // captionStyles.json の fill に相当
     hookStrokeColor,  // captionStyles.json の stroke[1] に相当
     hookFontFamily,   // 例："Dela Gothic One"
+    hookFontWeight,   // 例："900"（フォントによって存在するウェイトが違う）
   } = req.body || {};
 
   if (!videoUrl) {
@@ -48,6 +49,7 @@ export default async function handler(req, res) {
     if (hookFillColor)   modifications["hook.fill_color"] = hookFillColor;
     if (hookStrokeColor) modifications["hook.stroke_color"] = hookStrokeColor;
     if (hookFontFamily)  modifications["hook.font_family"] = hookFontFamily;
+    if (hookFontWeight)  modifications["hook.font_weight"] = hookFontWeight;
 
     const data = await creatomateFetch("/renders", {
       method: "POST",
