@@ -109,6 +109,11 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         template_id: templateId,
         modifications,
+        // テンプレート自体が render_scale: 0.375（本来の37.5%サイズ）を
+        // 既定値として持っており、それを引き継ぐと文字がボヤけて見える
+        // （2026-08-07 実機で確認：720x1280が270x480で書き出されていた）。
+        // フルサイズで書き出すよう明示的に上書きする。
+        render_scale: 1,
       }),
     });
 
