@@ -89,7 +89,7 @@ ${hasImages ? "- 添付された写真に実際に写っているものを必ず
 
     const message = await client.messages.create({
       model: MODEL,
-      max_tokens: 800,
+      max_tokens: 1200, // 絵文字入りの日本語文章を4つ作らせると800では途中で切れることがあるため引き上げ
       messages: [{ role: "user", content }],
     });
 
