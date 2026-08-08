@@ -42,7 +42,7 @@ const VIDEO_TYPE_DIRECTIVE = {
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { project = {}, input = "", duration = "xs" } = req.body || {};
+  const { project = {}, input = "", duration = "xs", videoDirection = "" } = req.body || {};
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: "APIキーが設定されていません" });
@@ -57,12 +57,31 @@ export default async function handler(req, res) {
     `No specific visual style was set for this project. Use photorealistic live-action footage as the default, ` +
     `and if any person appears, they must be Japanese in appearance.`;
 
+  const hasExplicitDirection = videoDirection.trim().length > 0;
+
+  const sceneInstructionSection = hasExplicitDirection
+    ? `【最重要ルール②：動画演出の指示（最優先）】
+ユーザーが「動画にどんな演出をさせるか」を専用の欄に、以下のとおり
+明確に指定しています。これは絶対に守るべき、具体的なシーン指示です。
+曖昧に解釈したり、別の穏やかな絵に置き換えたりしないでください。
+
+${videoDirection.trim()}
+
+この指示を、プロンプトの中心となる被写体の動作として描写してください。
+時系列（最初に何が起き、次に何が起きるか）がある内容なら、明確に順序立てて書くこと。`
+    : `【最重要ルール②：ネタの中の具体的な演出指示（専用欄が空の場合のみ）】
+専用の演出指示欄が空だったため、「今回のネタ」の文章の中に、具体的な
+映像の演出・動作・シーンの指示が含まれていないか確認してください
+（例：「〜な動画にして」「人が乗って走り去る」など）。
+含まれていれば、それも絶対に守るべき指示として扱ってください。
+宣伝文句の一部として読み飛ばさないこと。`;
+
   const instruction = `動画生成AI（Kling）用の英語プロンプトを1つ作成してください。
 
 【ブランド設定（雰囲気・トーンの参考）】
 ${brandInfo}
 
-【今回のネタ（そのまま投稿文にも使う文章です）】
+【今回のネタ（投稿文にも使う文章。雰囲気の参考程度）】
 ${input || "ブランド設定に沿った内容"}
 
 【最重要ルール①：映像タイプは絶対に守ること】
@@ -71,15 +90,11 @@ ${input || "ブランド設定に沿った内容"}
 
 ${videoTypeDirective}
 
-【最重要ルール②：ネタの中の具体的な演出指示】
-「今回のネタ」の中に、具体的な映像の演出・動作・シーンの指示が
-含まれている場合（例：「〜な動画にして」「人が乗って走り去る」
-「〜している様子を見せて」など）、それも絶対に守るべき指示です。
-宣伝文句の一部として読み飛ばさず、必ずプロンプトの中心に据えてください。
+${sceneInstructionSection}
 
 【①と②が矛盾する場合】
-例：映像タイプが「人物なし」なのに、ネタに「人が乗って走り去る」と書かれている場合。
-この場合はネタの具体的な指示（②）を優先してください。今回1回だけの
+例：映像タイプが「人物なし」なのに、演出指示に「人が乗って走り去る」とある場合。
+この場合は②（具体的な演出指示）を優先してください。今回1回だけの
 特別な演出依頼だと判断し、その通りに描写してください。
 
 具体的な演出指示が無い場合は、映像タイプの指定を守りながら、
@@ -117,6 +132,7 @@ ${videoTypeDirective}
     // Vercelのログで実際の生成結果を確認できるようにする
     console.log("[generate-kling-prompt] videoType:", project.videoType, "→", videoTypeDirective.slice(0, 60));
     console.log("[generate-kling-prompt] neta:", input);
+    console.log("[generate-kling-prompt] videoDirection:", videoDirection || "(未指定)");
     console.log("[generate-kling-prompt] prompt:", prompt);
 
     return res.status(200).json({ prompt });
