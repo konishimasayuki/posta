@@ -104,6 +104,17 @@ export default async function handler(req, res) {
       }
     }
 
+    // このテンプレートは hook/punch/info/cta の4枠が常に存在する。
+    // 今回のcaptionsで使わなかった枠は、明示的に空文字で上書きしないと、
+    // テンプレートに以前保存された文字（過去のテスト時に入力した「テスト」等）
+    // がそのまま焼き込まれてしまう（2026-08-08 実機で確認：captionsが3個の
+    // ときに、使われなかった4個目の枠の残留文字が動画に写り込んだ）。
+    for (const role of KNOWN_ROLES) {
+      if (!usedRoles.has(role)) {
+        modifications[`${role}.text`] = "";
+      }
+    }
+
     const data = await creatomateFetch("/renders", {
       method: "POST",
       body: JSON.stringify({
