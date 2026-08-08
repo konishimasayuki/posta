@@ -258,7 +258,7 @@ export default function GeneratePage() {
   })();
   // ログインユーザー（プラン判定に使う。最終判定はサーバー側で行う）
   const currentUser = (() => {
-    try { return JSON.parse(sessionStorage.getItem("posta_user")); } catch { return null; }
+    try { return JSON.parse(localStorage.getItem("posta_user")); } catch { return null; }
   })();
   const USER_PLAN = currentUser?.plan || "free";
 
