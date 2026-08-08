@@ -58,7 +58,7 @@ export default function LoginPage() {
       }
 
       const user = data.user;
-      sessionStorage.setItem("posta_user", JSON.stringify(user));
+      localStorage.setItem("posta_user", JSON.stringify(user));
       setLoading(false);
       window.scrollTo(0, 0);
 
@@ -89,7 +89,7 @@ export default function LoginPage() {
         return;
       }
       // 登録後そのままログイン
-      sessionStorage.setItem("posta_user", JSON.stringify({ id: email, name: name || email, role: "user", plan: "free" }));
+      localStorage.setItem("posta_user", JSON.stringify({ id: email, name: name || email, role: "user", plan: "free" }));
       setLoading(false);
       window.scrollTo(0, 0);
       navigate("/projects");
