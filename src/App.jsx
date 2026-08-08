@@ -8,6 +8,8 @@ import MyPage           from "./pages/MyPage.jsx";
 import AdminPage        from "./pages/AdminPage.jsx";
 import ExplorePage      from "./pages/ExplorePage.jsx";
 import BottomNav        from "./components/BottomNav.jsx";
+import GenerationStatusBar from "./components/GenerationStatusBar.jsx";
+import { GenerationProvider } from "./context/GenerationContext.jsx";
 
 function Layout() {
   const location = useLocation();
@@ -26,11 +28,16 @@ function Layout() {
         <Route path="/admin"    element={<AdminPage />} />
         <Route path="/explore"  element={<ExplorePage />} />
       </Routes>
+      {!hideNav && <GenerationStatusBar />}
       {!hideNav && <BottomNav />}
     </>
   );
 }
 
 export default function App() {
-  return <Layout />;
+  return (
+    <GenerationProvider>
+      <Layout />
+    </GenerationProvider>
+  );
 }
