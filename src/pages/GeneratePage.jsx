@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import CaptionOverlay from "../components/CaptionOverlay.jsx";
 import { resolveAccent, resolveFont } from "../lib/fonts.js";
+import { useGeneration } from "../context/GenerationContext.jsx";
 
 const PLATFORMS = [
   { id: "tiktok",    label: "TikTok",    icon: "🎵", accent: "#fe2c55", bg: "#fff0f3" },
@@ -236,11 +237,20 @@ function LoadingScreen({ steps, currentStep, elapsed = 0 }) {
 // ─── メイン ───────────────────────────────────────────
 export default function GeneratePage() {
   const navigate = useNavigate();
+  const { job, elapsed: jobElapsed, startJob, updateJob, tickElapsed, finishJob, markViewed } = useGeneration();
 
   // 画面遷移時に先頭にスクロール
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  // 進行中・完了済みのジョブを開いたら「見た」ことにする
+  // （ステータスバーの「タップして見る」表示を消すため）
+  useEffect(() => {
+    if (job?.phase === "result" && !job.viewed) {
+      markViewed();
+    }
+  }, [job?.phase, job?.viewed, markViewed]);
 
   // sessionStorageからプロジェクトを取得
   const savedProject = (() => {
@@ -302,8 +312,10 @@ export default function GeneratePage() {
   const brandFont = resolveFont(PROJECT);
 
   const [selected, setSelected] = useState(["tiktok", "instagram"]);
-  const [phase, setPhase] = useState("input");   // input | loading | result
-  const [loadStep, setLoadStep] = useState(0);
+  // すでに進行中・完了済みのジョブがあれば、初期表示からそれを反映する
+  // （履歴やマイページから /generate に戻ってきたときのため）
+  const [phase, setPhase] = useState(job ? job.phase : "input");   // input | loading | result
+  const [loadStep, setLoadStep] = useState(job ? job.loadStep : 0);
   const [activeTab, setActiveTab] = useState("tiktok");
   const [copied, setCopied] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(true);
@@ -320,17 +332,17 @@ export default function GeneratePage() {
   const [videoDirectionTips, setVideoDirectionTips] = useState([]);
   const [videoDirectionLoading, setVideoDirectionLoading] = useState(false);
   const [videoDirectionError, setVideoDirectionError] = useState(null);
-  const [generatedTexts, setGeneratedTexts] = useState({});
+  const [generatedTexts, setGeneratedTexts] = useState(job?.generatedTexts || {});
   const [uploadedImages, setUploadedImages] = useState([]); // {file, url, base64}
-  const [videoUrl, setVideoUrl] = useState(null);        // Klingが生成した、文字なしの動画URL
-  const [burnedVideoUrl, setBurnedVideoUrl] = useState(null); // テロップ焼き込み後の動画URL（あればこちらを優先表示）
-  const [burnError, setBurnError] = useState(null);       // 焼き込みに失敗した場合の理由
-  const [videoError, setVideoError] = useState(null);    // 動画生成の失敗理由
-  const [klingPrompt, setKlingPrompt] = useState("");    // 生成に使った英語プロンプト
-  const [videoElapsed, setVideoElapsed] = useState(0);   // 動画生成の経過秒数
+  const [videoUrl, setVideoUrl] = useState(job?.videoUrl || null);        // Klingが生成した、文字なしの動画URL
+  const [burnedVideoUrl, setBurnedVideoUrl] = useState(job?.burnedVideoUrl || null); // テロップ焼き込み後の動画URL（あればこちらを優先表示）
+  const [burnError, setBurnError] = useState(job?.burnError || null);       // 焼き込みに失敗した場合の理由
+  const [videoError, setVideoError] = useState(job?.videoError || null);    // 動画生成の失敗理由
+  const [klingPrompt, setKlingPrompt] = useState(job?.klingPrompt || "");    // 生成に使った英語プロンプト
+  const [videoElapsed, setVideoElapsed] = useState(jobElapsed || 0);   // 動画生成の経過秒数
 
   // テロップ
-  const [captions, setCaptions] = useState([]);
+  const [captions, setCaptions] = useState(job?.captions || []);
   const [showCaptions, setShowCaptions] = useState(true);
   const [captionWords, setCaptionWords] = useState([]);   // ユーザーが指定した「テロップに入れたい言葉」
   const [wordInput, setWordInput] = useState("");         // 入力欄の一時テキスト
@@ -344,6 +356,8 @@ export default function GeneratePage() {
   const generatedTextsRef = useRef({});
   const videoUrlRef = useRef(null);
   const burnedVideoUrlRef = useRef(null);
+  const videoErrorRef = useRef(null);
+  const burnErrorRef = useRef(null);
   const klingPromptRef = useRef("");
   const captionsRef = useRef([]);
 
@@ -445,6 +459,7 @@ export default function GeneratePage() {
     for (let i = 0; i < MAX_TRIES; i++) {
       await new Promise(r => setTimeout(r, INTERVAL));
       setVideoElapsed((i + 1) * (INTERVAL / 1000));
+      tickElapsed();
 
       try {
         const res = await fetch(`/api/video-status?taskId=${encodeURIComponent(taskId)}&mode=${mode}`);
@@ -471,6 +486,7 @@ export default function GeneratePage() {
 
     for (let i = 0; i < MAX_TRIES; i++) {
       await new Promise(r => setTimeout(r, INTERVAL));
+      tickElapsed();
 
       try {
         const res = await fetch(`/api/creatomate-status?renderId=${encodeURIComponent(renderId)}`);
@@ -493,16 +509,28 @@ export default function GeneratePage() {
     setLoadStep(0);
     setVideoUrl(null);
     setVideoError(null);
+    videoErrorRef.current = null;
     setVideoElapsed(0);
     setCaptions([]);
     setVideoTime(0);
     setBurnedVideoUrl(null);
     setBurnError(null);
+    burnErrorRef.current = null;
     videoUrlRef.current = null;
     generatedTextsRef.current = {};
     klingPromptRef.current = "";
     captionsRef.current = [];
     burnedVideoUrlRef.current = null;
+
+    // 他の画面に移動しても進捗が見えるよう、共有の置き場所にも記録を始める
+    startJob({
+      projectId: PROJECT.id,
+      projectName: PROJECT.name,
+      projectColor: brandAccent,
+      selected,
+      duration,
+      generateVideo,
+    });
 
     const wait = ms => new Promise(r => setTimeout(r, ms));
     const imagePayload = uploadedImages.map(img => ({ base64: img.base64, mediaType: img.mediaType }));
@@ -512,6 +540,7 @@ export default function GeneratePage() {
 
     // ── STEP 1: 投稿文を生成中 ──
     setLoadStep(1);
+    updateJob({ loadStep: 1 });
     try {
       const res = await fetch("/api/generate-post", {
         method: "POST",
@@ -525,7 +554,7 @@ export default function GeneratePage() {
         }),
       });
       const data = await res.json();
-      if (data.results) { setGeneratedTexts(data.results); generatedTextsRef.current = data.results; }
+      if (data.results) { setGeneratedTexts(data.results); generatedTextsRef.current = data.results; updateJob({ generatedTexts: data.results }); }
       else console.error("generate-post error:", data.error);
     } catch (err) {
       console.error("generate-post fetch error:", err);
@@ -534,6 +563,7 @@ export default function GeneratePage() {
     if (generateVideo) {
       // ── STEP 2: 動画プロンプトを生成中 ──
       setLoadStep(2);
+      updateJob({ loadStep: 2 });
       let prompt = "";
       try {
         const res = await fetch("/api/generate-kling-prompt", {
@@ -545,14 +575,17 @@ export default function GeneratePage() {
         prompt = data.prompt || "";
         setKlingPrompt(prompt);
         klingPromptRef.current = prompt;
+        updateJob({ klingPrompt: prompt });
       } catch (err) {
         console.error("kling-prompt error:", err);
       }
 
       // ── STEP 3: オリジナル動画を生成中 ──
       setLoadStep(3);
+      updateJob({ loadStep: 3 });
       if (!prompt) {
         setVideoError("動画プロンプトの生成に失敗しました");
+        videoErrorRef.current = "動画プロンプトの生成に失敗しました";
       } else {
         try {
           const startRes = await fetch("/api/generate-video", {
@@ -574,14 +607,18 @@ export default function GeneratePage() {
           const url = await pollVideo(startData.taskId, startData.mode);
           setVideoUrl(url);
           videoUrlRef.current = url;
+          updateJob({ videoUrl: url });
         } catch (err) {
           console.error("video error:", err);
           setVideoError(err.message || "動画生成に失敗しました");
+          videoErrorRef.current = err.message || "動画生成に失敗しました";
+          updateJob({ videoError: err.message || "動画生成に失敗しました" });
         }
       }
 
       // ── STEP 4: 仕上げ処理中（テロップを設計） ──
       setLoadStep(4);
+      updateJob({ loadStep: 4 });
       let designedCaptions = [];
       try {
         const res = await fetch("/api/generate-captions", {
@@ -599,6 +636,7 @@ export default function GeneratePage() {
           designedCaptions = data.captions;
           setCaptions(data.captions);
           captionsRef.current = data.captions;
+          updateJob({ captions: data.captions });
         } else {
           console.error("captions error:", data.error);
         }
@@ -611,6 +649,7 @@ export default function GeneratePage() {
       // 焼き込みが失敗しても、文字なしの動画自体は既に手元にあるので、
       // ここで全体を止めずに videoUrl のまま結果画面に進む（フォールバック）。
       setLoadStep(5);
+      updateJob({ loadStep: 5 });
       if (videoUrlRef.current && designedCaptions.length > 0) {
         try {
           const burnRes = await fetch("/api/creatomate-burn", {
@@ -630,24 +669,41 @@ export default function GeneratePage() {
           const finalUrl = await pollBurn(burnData.renderId);
           setBurnedVideoUrl(finalUrl);
           burnedVideoUrlRef.current = finalUrl;
+          updateJob({ burnedVideoUrl: finalUrl });
         } catch (err) {
           console.error("burn error:", err);
           setBurnError(err.message || "テロップの焼き込みに失敗しました");
+          burnErrorRef.current = err.message || "テロップの焼き込みに失敗しました";
+          updateJob({ burnError: err.message || "テロップの焼き込みに失敗しました" });
           // videoUrl（文字なし）はそのまま残っているので、結果画面は表示できる
         }
       }
     } else {
       // 動画を作らない場合はステップだけ進めて自然に見せる
       setLoadStep(2);
+      updateJob({ loadStep: 2 });
       await wait(300);
       setLoadStep(3);
+      updateJob({ loadStep: 3 });
       await wait(300);
       setLoadStep(4);
+      updateJob({ loadStep: 4 });
     }
     await wait(300);
 
     setPhase("result");
     setActiveTab(selected[0]);
+
+    // 他の画面にいても完成が分かるよう、共有の置き場所に最終結果を確定させる
+    finishJob({
+      videoUrl: videoUrlRef.current,
+      burnedVideoUrl: burnedVideoUrlRef.current,
+      videoError: videoErrorRef.current,
+      burnError: burnErrorRef.current,
+      captions: captionsRef.current,
+      generatedTexts: generatedTextsRef.current,
+      klingPrompt: klingPromptRef.current,
+    });
 
     // ── 履歴を保存 ──
     if (currentUser?.id) {
