@@ -4,9 +4,9 @@ import { formatRelative } from "../lib/time.js";
 
 const PLAN_META = {
   free:     { label: "Free",     color: "#059669", bg: "#ecfdf5", price: "¥0",      videoLimit: 3,   duration: 5  },
-  starter:  { label: "Starter",  color: "#6b7280", bg: "#f9fafb", price: "¥2,980",  videoLimit: 10,  duration: 5  },
-  pro:      { label: "Pro",      color: "#f97316", bg: "#fff7ed", price: "¥9,800",  videoLimit: 20,  duration: 10 },
-  business: { label: "Business", color: "#7c3aed", bg: "#f5f3ff", price: "¥29,800", videoLimit: 100, duration: 10 },
+  starter:  { label: "Starter",  color: "#6b7280", bg: "#f9fafb", price: "¥6,980",  videoLimit: 10,  duration: 5  },
+  pro:      { label: "Pro",      color: "#f97316", bg: "#fff7ed", price: "¥12,980", videoLimit: 20,  duration: 10 },
+  business: { label: "Business", color: "#7c3aed", bg: "#f5f3ff", price: "¥29,800", videoLimit: 50,  duration: 10 },
 };
 
 const PLATFORM_ICON = { tiktok: "🎵", instagram: "📸", x: "𝕏", note: "📝" };
