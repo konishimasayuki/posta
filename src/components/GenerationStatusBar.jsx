@@ -26,10 +26,16 @@ export default function GenerationStatusBar() {
 
   const isDone = job.phase === "result";
   const isFailed = isDone && !job.videoUrl && !job.burnedVideoUrl && job.videoError;
-  // 今まさにこの画面（結果画面）を見ている最中は、バーを重ねて出す必要がない
   const isOnGeneratePage = location.pathname === "/generate";
-  if (isOnGeneratePage && isDone && job.viewed) return null;
-  if (isOnGeneratePage && !isDone) return null;
+
+  // 完了済みで、すでに一度見ていれば、どの画面にいても表示しない
+  // （以前は /generate にいるときしかこの判定が効かず、他の画面に
+  //   移動すると「完成しました」がずっと出っぱなしになっていた）
+  if (isDone && job.viewed) return null;
+
+  // 進行中で、今まさに /generate で本画面（進捗バー）を見ている最中は、
+  // 重ねて出す必要がない
+  if (!isDone && isOnGeneratePage) return null;
 
   const mm = String(Math.floor(elapsed / 60)).padStart(1, "0");
   const ss = String(elapsed % 60).padStart(2, "0");
