@@ -314,6 +314,12 @@ export default function GeneratePage() {
   const [netaTipsLoading, setNetaTipsLoading] = useState(false);
   const [netaError, setNetaError] = useState(null);
   const [neta, setNeta] = useState("");
+
+  // 動画生成指示（回転させる・人が乗り込む、等の具体的な演出指定）
+  const [videoDirection, setVideoDirection] = useState("");
+  const [videoDirectionTips, setVideoDirectionTips] = useState([]);
+  const [videoDirectionLoading, setVideoDirectionLoading] = useState(false);
+  const [videoDirectionError, setVideoDirectionError] = useState(null);
   const [generatedTexts, setGeneratedTexts] = useState({});
   const [uploadedImages, setUploadedImages] = useState([]); // {file, url, base64}
   const [videoUrl, setVideoUrl] = useState(null);        // Klingが生成した、文字なしの動画URL
@@ -397,6 +403,37 @@ export default function GeneratePage() {
       setNetaError("通信エラーが発生しました");
     }
     setNetaTipsLoading(false);
+  };
+
+  // 動画演出の候補をAPI Route経由で生成（写真があればVisionで読み取り、ネタも参考にする）
+  const generateVideoDirectionTips = async () => {
+    setVideoDirectionLoading(true);
+    setVideoDirectionError(null);
+    try {
+      const res = await fetch("/api/generate-video-direction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: PROJECT,
+          neta,
+          images: uploadedImages.map(img => ({ base64: img.base64, mediaType: img.mediaType })),
+        }),
+      });
+      const data = await res.json();
+      if (data.directions && data.directions.length > 0) {
+        setVideoDirectionTips(data.directions);
+        setVideoDirectionError(null);
+      } else {
+        console.error("video-direction API error:", data.error, data.raw);
+        setVideoDirectionTips([]);
+        setVideoDirectionError(data.error || "候補を生成できませんでした");
+      }
+    } catch (err) {
+      console.error("video-direction fetch error:", err);
+      setVideoDirectionTips([]);
+      setVideoDirectionError("通信エラーが発生しました");
+    }
+    setVideoDirectionLoading(false);
   };
 
   // ステータスを数秒おきに確認して動画の完成を待つ
@@ -502,7 +539,7 @@ export default function GeneratePage() {
         const res = await fetch("/api/generate-kling-prompt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ project: PROJECT, input: neta, duration }),
+          body: JSON.stringify({ project: PROJECT, input: neta, duration, videoDirection }),
         });
         const data = await res.json();
         prompt = data.prompt || "";
@@ -860,6 +897,7 @@ export default function GeneratePage() {
               )}
             </div>
 
+
             {/* ネタ入力 */}
             <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
@@ -952,53 +990,73 @@ export default function GeneratePage() {
               </div>
             </div>
 
-            {/* プラットフォーム */}
-            <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px" }}>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "10px" }}>
-                📱 投稿先を選択 <span style={{ color: "#9ca3af", fontWeight: 400 }}>複数OK</span>
-              </div>
-              <div style={{ display: "flex", gap: "7px", flexWrap: "wrap" }}>
-                {PLATFORMS.map(p => {
-                  const sel = selected.includes(p.id);
-                  return (
-                    <button key={p.id} onClick={() => toggle(p.id)} style={{
-                      display: "flex", alignItems: "center", gap: "5px",
-                      padding: "8px 14px", borderRadius: "20px",
-                      border: `1.5px solid ${sel ? p.accent : "#e5e7eb"}`,
-                      background: sel ? p.bg : "#fff",
-                      color: sel ? p.accent : "#6b7280",
-                      fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.15s",
-                    }}>
-                      <span>{p.icon}</span>
-                      <span>{p.label}</span>
-                      {sel && <span style={{ fontSize: "9px", background: p.accent, color: "#fff", borderRadius: "50%", width: "14px", height: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}>✓</span>}
-                    </button>
-                  );
-                })}
-              </div>
-              {selected.length > 0 && (
-                <div style={{ marginTop: "10px", fontSize: "11px", color: "#9ca3af" }}>
-                  {selected.length}媒体を選択
-                </div>
-              )}
-            </div>
 
-            {/* 動画を作るかどうか */}
+            {/* 動画生成指示 */}
             <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={generateVideo}
-                  onChange={e => setGenerateVideo(e.target.checked)}
-                  style={{ width: "18px", height: "18px", accentColor: "#f97316" }}
-                />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151" }}>🎬 動画も生成する</div>
-                  <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "2px" }}>
-                    オフにすると投稿文だけを生成します（動画のプラン消費なし）
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "4px" }}>
+                🎬 動画生成指示 <span style={{ color: "#9ca3af", fontWeight: 400 }}>任意・空ならAIが自動で決める</span>
+              </div>
+              <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px", lineHeight: 1.6 }}>
+                動画に「どんな動き・演出をさせるか」を具体的に指定できます。
+                例：「車がゆっくり回転する」「人が乗り込んで走り去る」「空へフェードする」
+              </div>
+              <textarea value={videoDirection} onChange={e => setVideoDirection(e.target.value)} rows={2}
+                placeholder="例：人が車に乗り込んで走り去る"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: "10px", border: "1.5px solid #e5e7eb", fontSize: "13px", outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.7, color: "#111827" }} />
+
+              {/* AI候補 */}
+              <div style={{ marginTop: "10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: "#374151" }}>
+                    💡 演出の候補
+                    <span style={{ fontSize: "10px", color: "#9ca3af", fontWeight: 400, marginLeft: "6px" }}>
+                      {uploadedImages.length > 0 ? "写真の内容からAIが提案" : "ネタとブランド設定からAIが提案"}
+                    </span>
                   </div>
+                  <button onClick={generateVideoDirectionTips} disabled={videoDirectionLoading} style={{
+                    fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "20px",
+                    border: "1px solid #f97316", background: videoDirectionLoading ? "#f3f4f6" : "#fff7ed",
+                    color: videoDirectionLoading ? "#9ca3af" : "#f97316", cursor: videoDirectionLoading ? "default" : "pointer",
+                    display: "flex", alignItems: "center", gap: "3px", whiteSpace: "nowrap", flexShrink: 0,
+                  }}>
+                    {videoDirectionLoading
+                      ? <><span style={{ animation: "spin 0.8s linear infinite", display: "inline-block" }}>⟳</span> 生成中</>
+                      : videoDirectionTips.length > 0 ? "🔄 更新" : "✨ 候補を生成"}
+                  </button>
                 </div>
-              </label>
+
+                {videoDirectionTips.length === 0 && !videoDirectionLoading && !videoDirectionError && (
+                  <div style={{ textAlign: "center", padding: "14px", background: "#f9fafb", borderRadius: "10px", border: "1px dashed #e5e7eb" }}>
+                    <div style={{ fontSize: "11px", color: "#9ca3af" }}>「候補を生成」でAIが演出案を提案します</div>
+                  </div>
+                )}
+
+                {videoDirectionError && !videoDirectionLoading && (
+                  <div style={{ padding: "10px 12px", background: "#fef2f2", borderRadius: "10px", border: "1px solid #fecaca" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#ef4444", marginBottom: "3px" }}>
+                      候補を生成できませんでした
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#b91c1c", lineHeight: 1.6 }}>
+                      {videoDirectionError}
+                    </div>
+                  </div>
+                )}
+
+                {videoDirectionTips.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {videoDirectionTips.map((d, i) => (
+                      <div key={i} onClick={() => setVideoDirection(d)} style={{
+                        padding: "8px 12px", borderRadius: "10px", cursor: "pointer",
+                        background: videoDirection === d ? "#fff7ed" : "#f9fafb",
+                        border: `1px solid ${videoDirection === d ? "#f97316" : "#e5e7eb"}`,
+                        fontSize: "12px", color: "#374151", lineHeight: 1.6,
+                      }}>
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* テロップに入れたい言葉 */}
@@ -1094,6 +1152,58 @@ export default function GeneratePage() {
                 )}
               </div>
             )}
+
+
+            {/* 動画を作るかどうか */}
+            <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={generateVideo}
+                  onChange={e => setGenerateVideo(e.target.checked)}
+                  style={{ width: "18px", height: "18px", accentColor: "#f97316" }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151" }}>🎬 動画も生成する</div>
+                  <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "2px" }}>
+                    オフにすると投稿文だけを生成します（動画のプラン消費なし）
+                  </div>
+                </div>
+              </label>
+            </div>
+
+
+            {/* プラットフォーム */}
+            <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px" }}>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "10px" }}>
+                📱 投稿先を選択 <span style={{ color: "#9ca3af", fontWeight: 400 }}>複数OK</span>
+              </div>
+              <div style={{ display: "flex", gap: "7px", flexWrap: "wrap" }}>
+                {PLATFORMS.map(p => {
+                  const sel = selected.includes(p.id);
+                  return (
+                    <button key={p.id} onClick={() => toggle(p.id)} style={{
+                      display: "flex", alignItems: "center", gap: "5px",
+                      padding: "8px 14px", borderRadius: "20px",
+                      border: `1.5px solid ${sel ? p.accent : "#e5e7eb"}`,
+                      background: sel ? p.bg : "#fff",
+                      color: sel ? p.accent : "#6b7280",
+                      fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.15s",
+                    }}>
+                      <span>{p.icon}</span>
+                      <span>{p.label}</span>
+                      {sel && <span style={{ fontSize: "9px", background: p.accent, color: "#fff", borderRadius: "50%", width: "14px", height: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}>✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              {selected.length > 0 && (
+                <div style={{ marginTop: "10px", fontSize: "11px", color: "#9ca3af" }}>
+                  {selected.length}媒体を選択
+                </div>
+              )}
+            </div>
+
 
             {/* 動画の長さ */}
             {generateVideo && (
