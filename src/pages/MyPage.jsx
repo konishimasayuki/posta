@@ -15,7 +15,7 @@ export default function MyPage() {
   const navigate = useNavigate();
 
   const currentUser = (() => {
-    try { return JSON.parse(sessionStorage.getItem("posta_user")); } catch { return null; }
+    try { return JSON.parse(localStorage.getItem("posta_user")); } catch { return null; }
   })();
   const userId = currentUser?.id || "guest";
   const isDemo = currentUser?.role === "demo";
@@ -52,6 +52,9 @@ export default function MyPage() {
   };
 
   const handleLogout = () => {
+    // ログイン情報はlocalStorageに保存しているため、明示的に消す必要がある
+    localStorage.removeItem("posta_user");
+    // プロジェクトの選択状態（タブごとの一時データ）はsessionStorageのままなのでこちらは従来通り
     sessionStorage.clear();
     window.scrollTo(0, 0);
     navigate("/login");
