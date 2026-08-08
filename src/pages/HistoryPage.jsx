@@ -373,7 +373,7 @@ export default function HistoryPage() {
   const navigate = useNavigate();
 
   const currentUser = (() => {
-    try { return JSON.parse(sessionStorage.getItem("posta_user")); } catch { return null; }
+    try { return JSON.parse(localStorage.getItem("posta_user")); } catch { return null; }
   })();
   const isDemo = currentUser?.role === "demo";
   const userId = currentUser?.id || "guest";
