@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatRelative } from "../lib/time.js";
+import { getCurrentUser, getUserId, clearCurrentUser } from "../lib/auth.js";
 
 const PLAN_META = {
   free:     { label: "Free",     color: "#059669", bg: "#ecfdf5", price: "¥0",      videoLimit: 3,   duration: 5  },
@@ -14,10 +15,8 @@ const PLATFORM_ICON = { tiktok: "🎵", instagram: "📸", x: "𝕏", note: "�
 export default function MyPage() {
   const navigate = useNavigate();
 
-  const currentUser = (() => {
-    try { return JSON.parse(localStorage.getItem("posta_user")); } catch { return null; }
-  })();
-  const userId = currentUser?.id || "guest";
+  const currentUser = getCurrentUser();
+  const userId = getUserId();
   const isDemo = currentUser?.role === "demo";
 
   const [tab, setTab] = useState("profile");
@@ -28,7 +27,11 @@ export default function MyPage() {
 
   const plan = PLAN_META[currentUser?.plan] || PLAN_META.free;
 
-  // ログインしていなければログイン画面へ
+  // ログインしていなければログイン画面へ。
+  // 注意：currentUser を依存配列に入れないこと。
+  // 毎回の再描画で新しいオブジェクトが生成されるため、
+  // 中身が同じでも「変化した」と判定されてこのeffectが繰り返し動き、
+  // 一瞬の読み取り失敗でログイン画面へ飛ばされる原因になっていた。
   useEffect(() => {
     if (!currentUser) {
       navigate("/login");
@@ -52,9 +55,10 @@ export default function MyPage() {
   };
 
   const handleLogout = () => {
-    // ログイン情報はlocalStorageに保存しているため、明示的に消す必要がある
-    localStorage.removeItem("posta_user");
-    // プロジェクトの選択状態（タブごとの一時データ）はsessionStorageのままなのでこちらは従来通り
+    // ログイン情報とキャッシュをまとめて消す
+    clearCurrentUser();
+    // 選択中のプロジェクトも消す（別アカウントで入ったときに前の選択が残らないように）
+    try { localStorage.removeItem("posta_project"); } catch {}
     sessionStorage.clear();
     window.scrollTo(0, 0);
     navigate("/login");
