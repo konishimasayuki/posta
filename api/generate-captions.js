@@ -455,7 +455,10 @@ function sanitize(captions, duration, brandFontId = null) {
 
   const cleaned = captions
     .filter(c => c && typeof c.text === "string" && c.text.trim())
-    .slice(0, 6)
+    // テンプレートの枠数（hook1 + punch2 + info4 + cta1 = 8）に合わせる。
+    // ここを増やしてもCreatomate側の枠が無ければ焼き込まれないので、
+    // テンプレートに枠を追加したときは、この数字も一緒に増やすこと。
+    .slice(0, 8)
     .map(c => {
       // 開始は「尺 - 最低表示秒」を超えないようにする
       const maxStart = Math.max(0, duration - MIN_SHOW);
@@ -681,7 +684,18 @@ ${neta || "ブランド設定に沿った内容"}
 - 動画は${seconds}秒。start/end は 0 〜 ${seconds} の範囲の秒数
 - テロップ同士は重ねない（前のendの後に次のstartが来る）
 - 各テロップは最低1秒は表示する
-- 全部で3〜5個
+- 個数は動画の尺に合わせること。1つのテロップには
+  アニメーション約1秒＋読む時間が必要なので、詰め込みすぎない
+    5秒  → 3個程度
+    10秒 → 5〜6個程度
+    それ以上 → 1個あたり1.5〜2秒を目安に
+
+【使える枠の上限（超えたぶんは捨てられる）】
+- hook  … 1個まで
+- punch … 2個まで
+- info  … 4個まで
+- cta   … 1個まで
+合計8個が上限。これを超えると、超えたテロップは動画に表示されない。
 
 【各項目の意味】
 - role: hook（引き）/ punch（主役）/ info（補足）/ cta（行動喚起）
