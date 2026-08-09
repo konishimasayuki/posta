@@ -53,7 +53,9 @@ export default function GenerationStatusBar() {
         position: "fixed",
         left: "50%",
         transform: "translateX(-50%)",
-        bottom: "96px", // BottomNavの高さ＋少し余白を取って、指が届きやすい位置を避ける
+        // BottomNavの高さ＋余白。ホームバーがある機種ではBottomNav自体が
+        // その分持ち上がるので、こちらも同じだけ足しておく
+        bottom: "calc(96px + env(safe-area-inset-bottom, 0px))",
         zIndex: 150,
         width: "calc(100% - 32px)",
         maxWidth: "480px",
