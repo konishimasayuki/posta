@@ -108,8 +108,10 @@ function WorkCard({ work, myUserId, onLike, onUseTemplate, onUnpublish }) {
 
       <div style={{ padding: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-          <div style={{ width: "22px", height: "22px", borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", flexShrink: 0 }}>
-            👤
+          <div style={{ width: "22px", height: "22px", borderRadius: "50%", overflow: "hidden", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", flexShrink: 0 }}>
+            {work.projectThumb
+              ? <img src={work.projectThumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : "👤"}
           </div>
           <span style={{ fontSize: "11px", fontWeight: 700, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {work.projectName || work.userName}
