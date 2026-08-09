@@ -214,6 +214,8 @@ function DetailModal({ item, onClose }) {
   const [regenerating, setRegenerating] = useState(false);
   const [regenStep, setRegenStep] = useState("");   // 進行状況の表示用
   const [regenError, setRegenError] = useState(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishMsg, setPublishMsg] = useState(null);
   const [localItem, setLocalItem] = useState(item); // 作り直し後の内容を即座に反映するため
   const videoRef = useRef(null);
 
@@ -240,6 +242,54 @@ function DetailModal({ item, onClose }) {
       }
     }
     throw new Error("焼き込みに時間がかかりすぎています");
+  };
+
+  /**
+   * この作品を探索ページに公開する。
+   *
+   * 公開するのは「演出・ネタ・テロップの文言」まで。
+   * 書体や色（ブランド設定）は含めない。
+   * テンプレを使う側は自分のブランド設定で作るため、
+   * 見た目までコピーすると相手のブランドの一貫性が崩れてしまう。
+   */
+  const handlePublish = async () => {
+    if (!current.videoUrl) {
+      setPublishMsg({ type: "error", text: "動画が無い作品は公開できません" });
+      return;
+    }
+    if (!window.confirm("この作品を探索ページに公開しますか？\n他のユーザーが演出を参考にできるようになります。")) return;
+
+    setPublishing(true);
+    setPublishMsg(null);
+    try {
+      const res = await fetch("/api/explore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: getUserId(),
+          work: {
+            sourceId: current.id,
+            userName: getCurrentUser()?.name || "名無し",
+            projectName: current.projectName,
+            title: current.topic,
+            videoUrl: current.videoUrl,
+            videoDirection: current.videoDirection || "",
+            klingPrompt: current.klingPrompt || "",
+            captionTexts: (current.captions || []).map(c => c.text),
+            topic: current.topic,
+            platforms: current.platforms,
+            duration: current.duration,
+            industry: current.brand?.industry || "other",
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "公開に失敗しました");
+      setPublishMsg({ type: "ok", text: "探索ページに公開しました" });
+    } catch (err) {
+      setPublishMsg({ type: "error", text: err.message || "公開に失敗しました" });
+    }
+    setPublishing(false);
   };
 
   /**
@@ -475,6 +525,40 @@ function DetailModal({ item, onClose }) {
               {regenError && (
                 <div style={{ marginTop: "8px", padding: "10px 12px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", fontSize: "11px", color: "#b91c1c", lineHeight: 1.7 }}>
                   {regenError}
+                </div>
+              )}
+
+              {/* 探索ページへの公開 */}
+              {current.videoUrl && (
+                <>
+                  <button
+                    onClick={handlePublish}
+                    disabled={publishing}
+                    style={{
+                      width: "100%", marginTop: "8px", padding: "10px", borderRadius: "10px",
+                      border: "1.5px solid #fed7aa",
+                      background: publishing ? "#f9fafb" : "#fff7ed",
+                      color: publishing ? "#9ca3af" : "#c2410c",
+                      fontWeight: 700, fontSize: "12px", cursor: publishing ? "default" : "pointer",
+                    }}
+                  >
+                    {publishing ? "公開中..." : "🔍 探索ページに公開する"}
+                  </button>
+                  <div style={{ fontSize: "10px", color: "#9ca3af", textAlign: "center", marginTop: "5px", lineHeight: 1.6 }}>
+                    演出とテロップの構成が共有されます（書体・色は共有されません）
+                  </div>
+                </>
+              )}
+
+              {publishMsg && (
+                <div style={{
+                  marginTop: "8px", padding: "10px 12px", borderRadius: "10px",
+                  fontSize: "11px", lineHeight: 1.7,
+                  background: publishMsg.type === "ok" ? "#ecfdf5" : "#fef2f2",
+                  border: `1px solid ${publishMsg.type === "ok" ? "#a7f3d0" : "#fecaca"}`,
+                  color: publishMsg.type === "ok" ? "#047857" : "#b91c1c",
+                }}>
+                  {publishMsg.type === "ok" ? "✓ " : ""}{publishMsg.text}
                 </div>
               )}
             </div>
