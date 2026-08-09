@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import CaptionOverlay from "../components/CaptionOverlay.jsx";
 import { resolveAccent } from "../lib/fonts.js";
 import { formatRelative, formatJstFull } from "../lib/time.js";
+import { getCurrentUser } from "../lib/auth.js";
 
 const HISTORY = [
   { id: 1, projectName: "カフェ Lumière", projectColor: "#ea580c", projectSecondary: "#fff7ed", projectIcon: "🍽",
@@ -372,9 +373,7 @@ function DetailModal({ item, onClose }) {
 export default function HistoryPage() {
   const navigate = useNavigate();
 
-  const currentUser = (() => {
-    try { return JSON.parse(localStorage.getItem("posta_user")); } catch { return null; }
-  })();
+  const currentUser = getCurrentUser();
   const isDemo = currentUser?.role === "demo";
   const userId = currentUser?.id || "guest";
 
