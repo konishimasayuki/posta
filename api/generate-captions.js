@@ -82,6 +82,57 @@ function styleCatalogText() {
   return CAPTION_STYLE_CATALOG.map(s => `${s.id}｜${s.label}｜${s.use}`).join("\n");
 }
 
+// ── フォントカタログ ───────────────────────────────
+// konishiさんがCreatomateへアップロードし、ウェイトまで確認済みの28種類。
+// AIに「ネタとブランドの雰囲気に合うフォント」を選ばせるために使う。
+// 実際のフォント名・太さへの変換は api/_creatomateStyles.js が担当する
+// （ここのidと、_creatomateStyles.js の CREATOMATE_FONTS のキーを必ず一致させること）。
+const FONT_CATALOG = [
+  { id: "bIZUDGothic", label: "BIZ UDGothic", use: "実直・公共的・事務的。資料や帳票、アクセシビリティ重視" },
+  { id: "bIZUDPGothic", label: "BIZ UDPGothic", use: "実直だが読みやすく柔らかい。ビジネス文書の見出し" },
+  { id: "delaGothicOne", label: "Dela Gothic One", use: "力強い・インパクト最優先・レトロポップ。短い見出しやロゴ向き" },
+  { id: "dotGothic16", label: "DotGothic16", use: "レトロゲーム・8bit・ノスタルジー。装飾用途限定" },
+  { id: "iBMPlexSansJP", label: "IBM Plex Sans JP", use: "インダストリアル・テック・企業的。英数字が特にきれい" },
+  { id: "kaiseiDecol", label: "Kaisei Decol", use: "和モダン・レトロかわいい。和菓子や着物、昭和喫茶の空気" },
+  { id: "kiwiMaru", label: "Kiwi Maru", use: "やわらかく可憐・少しレトロ。文学的でやさしい" },
+  { id: "kleeOne", label: "KleeOne", use: "手書きの誠実さ・学校のノート・国語教材。やさしく真面目で、ノスタルジック" },
+  { id: "kosugi", label: "Kosugi", use: "ニュートラル・実務的・地味。無個性を活かしたい場面向き" },
+  { id: "kosugiMaru", label: "Kosugi Maru", use: "素朴・気取らない・カジュアル。本文寄りの丸ゴ" },
+  { id: "mPLUS1", label: "M PLUS 1", use: "today的・都会的・力強いが冷静。テック系の見出し" },
+  { id: "mPLUS1p", label: "M PLUS 1p", use: "M PLUS 1と同系。和欧混植の見出しで自然" },
+  { id: "mPLUS2", label: "M PLUS 2", use: "シャープ・都会的・スタイリッシュ。長めの見出しでも収まる" },
+  { id: "mPLUSRounded1c", label: "M PLUS Rounded 1c", use: "やわらかいのに強い。親しみやすく万能、UIの見出しにも合う" },
+  { id: "mochiyPopOne", label: "Mochiy Pop One", use: "かわいい・元気・子供っぽいポップさ。お菓子や子供向け販促の感じ" },
+  { id: "murecho", label: "Murecho", use: "洗練・ミニマル・落ち着いたモダンさ。ブランド見出し向き" },
+  { id: "notoSansJP", label: "NotoSansJP", use: "中立・信頼感・汎用。どんな内容にも馴染む安全牌で、企業やUIの見出しに強い" },
+  { id: "rocknRollOne", label: "RocknRollOne", use: "陽気・カジュアル・軽いポップさ。POPやSNS画像など、勢いを出したい場面向き" },
+  { id: "sawarabiGothic", label: "SawarabiGothic", use: "素朴で控えめ・和の落ち着き。本文や補足テキスト向きで、主張は弱い" },
+  { id: "shipporiMincho", label: "Shippori Mincho", use: "端正で凛とした和の重厚感。伝統的・高級・落ち着き。書籍タイトル、和食・日本酒・旅館、時代物の見出しに向く" },
+  { id: "shipporiMinchoB1", label: "ShipporiMinchoB1", use: "凛とした和の重厚感・高級・伝統。書籍タイトル、和食や日本酒、時代物の見出しに合う" },
+  { id: "yuseiMagic", label: "Yusei Magic", use: "手作り感・親しみ・チラシや黒板書きの温度感" },
+  { id: "zenAntiqueSoft", label: "Zen Antique Soft", use: "漫画の吹き出し・古書・昭和レトロ。素朴で懐かしい" },
+  { id: "zenKakuGothicAntique", label: "Zen Kaku Gothic Antique", use: "レトロで温かみのある角ゴ。和のニュアンスを少し帯びる" },
+  { id: "zenKakuGothicNew", label: "Zen Kaku Gothic New", use: "信頼感・端正・ビジネス寄り。汎用の強調に安全牌" },
+  { id: "zenMaruGothic", label: "Zen Maru Gothic", use: "やわらかいのに存在感がある。穏やかで上品なかわいさ。医療・教育・ベビー・食品系の見出しに合う" },
+  { id: "zenOldMincho", label: "Zen Old Mincho", use: "重厚・和風・格式。書籍タイトル、日本酒や旅館の見出し" },
+  { id: "zenKurenaido", label: "ZenKurenaido", use: "素朴・親しみやすい・ノートの走り書き。かわいすぎず落ち着いた手書き感" },
+];
+
+const FONT_IDS = new Set(FONT_CATALOG.map(f => f.id));
+
+/** role ごとの既定フォント（AIが選ばなかった・不正なIDを返したときの受け皿） */
+const ROLE_DEFAULT_FONT = {
+  hook:  "zenKakuGothicNew",   // 端正で読みやすい、引きに使う汎用
+  punch: "notoSansJP",         // 最太で視認性が高く、主役に耐える
+  info:  "zenKakuGothicNew",   // 補足は素直で読みやすいものに
+  cta:   "zenKakuGothicNew",   // 行動喚起も可読性優先
+};
+
+/** プロンプトに埋め込むフォント一覧テキスト */
+function fontCatalogText() {
+  return FONT_CATALOG.map(f => `${f.id}｜${f.label}｜${f.use}`).join("\n");
+}
+
 const MODEL = "claude-sonnet-4-6";
 
 /** AIの返答から最初のJSONオブジェクトだけを取り出す */
@@ -135,6 +186,7 @@ function buildFallbackFromWords(words, duration) {
       size: isPunch ? "xl" : "md",
       emphasis: isPunch ? "highlight" : "none",
       styleId: ROLE_DEFAULT_STYLE[role] || ROLE_DEFAULT_STYLE.info,
+      fontId:  ROLE_DEFAULT_FONT[role] || ROLE_DEFAULT_FONT.info,
     };
   });
 }
@@ -178,6 +230,8 @@ function sanitize(captions, duration) {
         emphasis: EMPHASIS.includes(c.emphasis) ? c.emphasis : "none",
         // 存在しないスタイルIDを返してきた場合は role ごとの既定に丸める
         styleId:  CAPTION_STYLE_IDS.has(c.styleId) ? c.styleId : (ROLE_DEFAULT_STYLE[role] || ROLE_DEFAULT_STYLE.info),
+        // 書体も同様。存在しないIDならroleごとの既定フォントに丸める
+        fontId:   FONT_IDS.has(c.fontId) ? c.fontId : (ROLE_DEFAULT_FONT[role] || ROLE_DEFAULT_FONT.info),
       };
     })
     .sort((a, b) => a.start - b.start);
@@ -237,7 +291,23 @@ ${styleCatalogText()}
 - 感情系（怒り・ツッコミ・恐怖）は、ネタが実際にその感情を扱うときだけ使う
 - 1本の動画の中でスタイルをバラバラにしすぎない。基本は2〜3種類までに抑え、
   punchだけ別格の1つを当てるのが読みやすい
-- 迷ったら基本カテゴリ（CJ_S001〜CJ_S018, CJ_S037, CJ_S038）から選ぶ`;
+- 迷ったら基本カテゴリ（CJ_S001〜CJ_S018, CJ_S037, CJ_S038）から選ぶ
+
+【テロップの書体（fontId）】
+1つ1つのテロップに、以下の一覧から最も合う書体を1つ選んでIDを指定してください。
+
+${fontCatalogText()}
+
+【書体選びの考え方】
+- ブランド設定の業種・トーン・ターゲット層と、ネタの内容の両方に合うものを選ぶ
+  （例：和食店や旅館なら明朝系、子供向けやお菓子ならポップな丸ゴシック、
+   士業や医療なら実直な角ゴシック、テック系ならモダンなゴシック）
+- punch（主役）は視認性が命。細い書体や手書き風は避け、太くて字面が大きいものを選ぶ
+- info（補足）は文字数が多くなりがちなので、癖が少なく読みやすいものを選ぶ
+- 装飾用途に振り切った書体（DotGothic16のようなドット絵風など）は、
+  ネタが実際にその世界観を扱うときだけ使う
+- 1本の動画の中で書体をバラバラにしすぎない。基本は1〜2種類に統一し、
+  punchだけ別の書体で目立たせる程度に抑えるのが読みやすい`;
 
   const instruction = hasUserWords
     ? `あなたは縦型ショート動画のテロップ設計の専門家です。
@@ -277,7 +347,7 @@ ${styleSection}
 
 【出力形式】
 以下のJSONだけを出力。前置き・解説・コードブロックは一切書かないこと。
-{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none","styleId":"CJ_S014"}]}`
+{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none","styleId":"CJ_S014","fontId":"zenKakuGothicNew"}]}`
     : `あなたは縦型ショート動画のテロップ設計の専門家です。
 ${seconds}秒の動画に載せるテロップを設計してください。
 
@@ -318,7 +388,7 @@ ${styleSection}
 
 【出力形式】
 以下のJSONだけを出力。前置き・解説・コードブロックは一切書かないこと。
-{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none","styleId":"CJ_S014"}]}`;
+{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none","styleId":"CJ_S014","fontId":"zenKakuGothicNew"}]}`;
 
   let rawText = "";
 
