@@ -1,22 +1,39 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700;900&display=swap');
 
 *, *::before, *::after {
- box-sizing: border-box;
- margin: 0;
- padding: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html {
- -webkit-text-size-adjust: 100%;
- text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
- font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
- background: #f8f9fb;
- color: #111827;
- -webkit-font-smoothing: antialiased;
- overflow-x: hidden;
+  font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+  background: #f8f9fb;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* iPhoneのノッチ・ダイナミックアイランドにヘッダーが隠れないようにする。
+   index.html で viewport-fit=cover を指定して画面いっぱいに広げているため、
+   その分の余白を自分で確保する必要がある。
+
+   bodyにpadding-topを入れる方法もあるが、それだとヘッダーの上に
+   背景色の違う帯ができて不自然になる。
+   ヘッダー自身が余白を持つ形にすれば、ヘッダーの白がそのまま上まで伸びる。
+
+   env(safe-area-inset-top) は端末が「上から何px空ければ安全か」を
+   教えてくれる値。機種ごとに違うので固定値ではなくこれを使う。
+   ノッチの無い端末では0pxになるので、余計な余白は生まれない。 */
+.posta-header {
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 ::-webkit-scrollbar { display: none; }
