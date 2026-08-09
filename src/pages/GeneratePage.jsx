@@ -757,6 +757,9 @@ export default function GeneratePage() {
         videoUrl: finalVideo || null,
         videoThumb: finalVideo || null,
         isBurned: !!finalBurnedVideo, // true: 文字は動画に焼き込み済み / false: 未焼き込み（プレビュー描画が必要）
+        // Klingが生成した「文字なし」の元動画。履歴からテロップを作り直すときに
+        // 素材として必要になる（焼き込み済みの動画に再度焼き込むと文字が二重になるため）
+        rawVideoUrl: finalRawVideo || null,
         klingPrompt: klingPromptRef.current || "",
         captions: captionsRef.current || [],
         brand: {
@@ -1411,6 +1414,11 @@ export default function GeneratePage() {
                         controls
                         loop
                         playsInline
+                        preload="metadata"
+                        // iOSは読み込んだだけだと最初のコマが描画されず真っ黒のままになる。
+                        // わずかに再生位置をずらすことで、実際のコマをサムネイルとして表示させる
+                        // （HistoryPageのVideoThumbと同じ対策）
+                        onLoadedMetadata={e => { try { e.target.currentTime = Math.min(0.15, (e.target.duration || 1) / 2); } catch {} }}
                         onTimeUpdate={e => setVideoTime(e.target.currentTime)}
                         style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                       />
