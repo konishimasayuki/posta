@@ -257,3 +257,51 @@ export function styleIdToModifications(styleId, elementName, styleDefs, fallback
 
   return result;
 }
+
+// ── アニメーション定義 ─────────────────────────────
+// generate-captions.js が選んだ animationId を、Creatomateに送る
+// 実際のアニメーション定義に変換するための対応表。
+// 中身は別班が実機で確認した定義をそのまま使っている。
+//
+// ※ generate-captions.js 側の ANIMATION_CATALOG とキーを必ず一致させること。
+//   片方だけ変更すると、AIが選んだアニメーションが反映されなくなる。
+const ANIMATION_DEFS = {
+  slideUpLetter: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"up","split":"letter","scope":"element","distance":"200%","background_effect":"disabled"}], // Slide up letter by letter
+  slideUpLetterClipped: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"up","split":"letter","scope":"split-clip"}], // Slide up letter by letter clipped
+  rollLetters360: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-spin","split":"letter","distance":"0%","rotation":"360°"}], // Roll letters 360
+  rollLettersUp: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-spin","split":"letter","direction":"left"}], // Roll letters up
+  rollLetters200down: [{"time":0,"duration":1,"easing":"elastic-out","type":"text-spin","split":"letter","distance":"200%","direction":"down"}], // Roll letters 200down
+  flyingLetter: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-fly","split":"letter"}], // Flying in letter by letter
+  wavingLetter: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-wave","split":"letter","overlap":"50%"}], // Waving in letter by letter
+  appearLetterRandomly: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-appear","split":"letter","order":"random"}], // Appear letter by letter randomly
+  textScaleCenter: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-scale","split":"line"}], // Text scale center
+  textScaleUp: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-scale","split":"line","axis":"y","y_anchor":"100%"}], // Text scale up
+  slideUpLine: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"up","split":"line","scope":"element","distance":"200%","background_effect":"disabled"}], // Slide up line by line
+  slideUpLineClipped: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"up","split":"line","scope":"split-clip"}], // Slide up line by line clipped
+  slideLeftLine: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"left","split":"line","scope":"element","distance":"200%","background_effect":"disabled"}], // Slide left line by line
+  slideRightLine: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"right","split":"line","scope":"element","distance":"200%","background_effect":"disabled"}], // Slide right line by line
+  textRevealUp: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-reveal","split":"line","axis":"y","y_anchor":"100%"}], // Text reveal up
+  textRevealLeft: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-reveal","split":"line","axis":"x","x_anchor":"100%"}], // Text reveal left
+  textTypewriting: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-typewriter"}], // Text typewriting
+  appearLine: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-appear","split":"line"}], // Appear line by line
+  appearLineRandomly: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-appear","split":"line","order":"random"}], // Appear line by line randomly
+  textRevealCenter: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-reveal","split":"line"}], // Text reveal center
+  textRevealHorizontal: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-reveal","split":"line","axis":"x"}], // Text reveal horizontal
+  slideDownLine: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"down","split":"line","scope":"element","distance":"200%","background_effect":"disabled"}], // Slide down line by line
+  textScaleCenterVertical: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-scale","split":"line","axis":"y"}], // Text scale center vertical
+  wavingLine: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-wave","split":"line","overlap":"50%"}], // Waving in line by line
+  slideUpWord: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"up","split":"word","scope":"element","distance":"200%","background_effect":"disabled"}], // Slide up word by word
+  appearWord: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-appear","split":"word"}], // Appear word by word
+  textScaleCorner: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-scale","split":"line","x_anchor":"0%","y_anchor":"100%"}], // Text scale corner
+  flyingLine: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-fly","split":"line"}], // Flying in line by line
+  wavingWord: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-wave","split":"word","overlap":"50%"}], // Waving in word by word
+  textRevealDown: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-reveal","split":"line","axis":"y","y_anchor":"0%"}], // Text reveal down
+};
+
+/**
+ * animationId から、Creatomateのmodificationsに入れるアニメーション定義を返す。
+ * 不正なIDや未指定の場合は null を返す（呼び出し側で既定値を使う）。
+ */
+export function animationIdToDefinition(animationId) {
+  return ANIMATION_DEFS[animationId] || null;
+}
