@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import CaptionOverlay from "../components/CaptionOverlay.jsx";
 import { resolveAccent, resolveFont } from "../lib/fonts.js";
 import { useGeneration } from "../context/GenerationContext.jsx";
+import { getCurrentUser } from "../lib/auth.js";
 
 const PLATFORMS = [
   { id: "tiktok",    label: "TikTok",    icon: "🎵", accent: "#fe2c55", bg: "#fff0f3" },
@@ -254,12 +255,10 @@ export default function GeneratePage() {
 
   // sessionStorageからプロジェクトを取得
   const savedProject = (() => {
-    try { return JSON.parse(sessionStorage.getItem("posta_project")); } catch { return null; }
+    try { return JSON.parse(localStorage.getItem("posta_project")); } catch { return null; }
   })();
   // ログインユーザー（プラン判定に使う。最終判定はサーバー側で行う）
-  const currentUser = (() => {
-    try { return JSON.parse(localStorage.getItem("posta_user")); } catch { return null; }
-  })();
+  const currentUser = getCurrentUser();
   const USER_PLAN = currentUser?.plan || "free";
 
   // プランごとの動画尺の上限（秒）
