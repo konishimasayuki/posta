@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getCurrentUser } from "../lib/auth.js";
 
 const WORKS = [
   { id: 1,  user: "カフェ Lumière",  avatar: "🍽", plan: "Pro",     likes: 114, liked: false, type: "video", duration: "15秒", platform: "TikTok",    accent: "#fe2c55", thumb: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&q=80", title: "週末モーニングの朝",         prompt: "Warm cozy cafe interior, morning sunlight streaming through windows, steam rising from coffee cup, slow cinematic pan, 9:16 vertical", tags: ["カフェ","朝活","Vlog風"] },
@@ -80,9 +81,7 @@ function WorkCard({ work, onLike, onUseTemplate }) {
 export default function ExplorePage() {
   const navigate = useNavigate();
 
-  const currentUser = (() => {
-    try { return JSON.parse(localStorage.getItem("posta_user")); } catch { return null; }
-  })();
+  const currentUser = getCurrentUser();
   const isDemo = currentUser?.role === "demo";
 
   // 探索は全ユーザーが見れる（いいねはデモのみ全機能）
