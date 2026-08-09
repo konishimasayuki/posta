@@ -501,7 +501,7 @@ function BrandModal({ project, onSave, onClose }) {
 }
 
 // ─── 画面1: プロジェクト一覧 ─────────────────────────
-function ProjectList({ projects, onSelect, onNew, onEdit, isDemo, getStats }) {
+function ProjectList({ projects, onSelect, onNew, onEdit, onDelete, isDemo, getStats }) {
   return (
     <>
       <Header title="プロジェクト一覧" accentColor="#f97316"
@@ -559,7 +559,10 @@ function ProjectList({ projects, onSelect, onNew, onEdit, isDemo, getStats }) {
                         </div>
                       </div>
                     </div>
-                    <button onClick={() => onEdit(p)} style={{ padding: "6px 12px", borderRadius: "8px", border: "1.5px solid #e5e7eb", background: "#fff", color: "#374151", fontWeight: 700, fontSize: "11px", cursor: "pointer", flexShrink: 0 }}>編集</button>
+                    <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                      <button onClick={() => onEdit(p)} style={{ padding: "6px 12px", borderRadius: "8px", border: "1.5px solid #e5e7eb", background: "#fff", color: "#374151", fontWeight: 700, fontSize: "11px", cursor: "pointer" }}>編集</button>
+                      <button onClick={() => onDelete(p)} style={{ padding: "6px 10px", borderRadius: "8px", border: "1.5px solid #fecaca", background: "#fff", color: "#ef4444", fontWeight: 700, fontSize: "11px", cursor: "pointer" }}>削除</button>
+                    </div>
                   </div>
                   {purpose && (
                     <div style={{ background: color?.secondary || "#fff7ed", borderRadius: "10px", padding: "9px 12px", marginBottom: "10px", border: `1px solid ${color?.primary || "#f97316"}22` }}>
@@ -727,6 +730,39 @@ export default function ProjectListPage() {
     navigate("/generate");
   };
 
+  /**
+   * プロジェクトを削除する。
+   *
+   * 生成履歴（過去の作品）はプロジェクトとは別に保存されているため、
+   * ここでは消さない。履歴は履歴ページから個別に消せる。
+   * その方針をダイアログにも明記して、誤解が起きないようにする。
+   */
+  const handleDelete = (project) => {
+    const stats = getProjectStats(project);
+    const message =
+      `「${project.name}」を削除しますか？\n\n` +
+      (stats.count > 0
+        ? `このプロジェクトで生成した${stats.count}件の作品は、過去の作品に残ります。\n`
+        : "") +
+      "この操作は取り消せません。";
+
+    if (!window.confirm(message)) return;
+
+    const newProjects = projects.filter(p => p.id !== project.id);
+    setProjects(newProjects);
+    saveProjects(newProjects);
+    showToast("プロジェクトを削除しました");
+
+    // 削除したプロジェクトが選択中だった場合、選択状態も消す
+    // （そのまま生成画面へ行くと、存在しないプロジェクトを参照してしまうため）
+    try {
+      const selected = JSON.parse(localStorage.getItem("posta_project"));
+      if (selected && String(selected.id) === String(project.id)) {
+        localStorage.removeItem("posta_project");
+      }
+    } catch {}
+  };
+
   const handleSave = (data) => {
     let newProjects;
     if (data.id) {
@@ -756,7 +792,7 @@ export default function ProjectListPage() {
           </div>
         </div>
       ) : (
-        <ProjectList projects={projects} onSelect={handleSelect} onNew={() => setModal("new")} onEdit={p => setModal(p)} isDemo={isDemo} getStats={getProjectStats} />
+        <ProjectList projects={projects} onSelect={handleSelect} onNew={() => setModal("new")} onEdit={p => setModal(p)} onDelete={handleDelete} isDemo={isDemo} getStats={getProjectStats} />
       )}
       {modal && <BrandModal project={modal === "new" ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
     </div>
