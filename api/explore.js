@@ -51,6 +51,9 @@ export default async function handler(req, res) {
         sourceId: work.sourceId || null,        // 元になった履歴のid（重複公開の判定用）
         userName: truncate(work.userName, 40) || "名無し",
         projectName: truncate(work.projectName, 40) || "",
+        // プロジェクトのサムネイル（192px・JPEG圧縮済みのdataURL）。
+        // 探索ページで投稿者のアイコンとして表示する
+        projectThumb: work.projectThumb || null,
         title: truncate(work.title, 60) || "無題",
         videoUrl: work.videoUrl,
         // ▼ ここがテンプレとして「借りられる」中身。
