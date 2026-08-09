@@ -7,12 +7,19 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#f97316" />
 
     <!-- iOS: ホーム画面追加時にSafariのUIを隠してアプリのように表示する -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- PWAとして起動したときのステータスバー（時刻・電波）の扱い。
+         black-translucent にすると全画面に広がって「アプリらしく」なるが、
+         ステータスバーがアプリの上に重なるため、ヘッダーが時刻の下に
+         潜り込んでしまう（2026-08-09 にiPhone 12 Proで実際に発生）。
+         default にすると iOS が自動でステータスバー分の場所を空けてくれる。
+         あわせて viewport-fit=cover も外している
+         （画面いっぱいに広げる指定で、これも被りの原因になるため）。 -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Posta" />
 
     <!-- Android / 新しいブラウザ向け（apple-mobile-web-app-capable の後継） -->
