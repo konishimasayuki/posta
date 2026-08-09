@@ -82,6 +82,252 @@ function styleCatalogText() {
   return CAPTION_STYLE_CATALOG.map(s => `${s.id}｜${s.label}｜${s.use}`).join("\n");
 }
 
+// ── アニメーションカタログ ─────────────────────────
+// Creatomateで実機確認済みの30種。テロップの見せ方を決める重要な要素。
+// 「動きが無い＝素人っぽい」ので、原則すべてのテロップに何かしら付ける。
+//
+// split の意味：
+//   letter … 1文字ずつ動く（短い言葉で映える。主役向き）
+//   word   … 単語ごとに動く（日本語は区切りが曖昧なので使い所を選ぶ）
+//   line   … 行ごとに動く（長めの文に向く）
+//
+// ※ 実際のアニメーション定義は api/_creatomateStyles.js 側が持ち、
+//   ここではAIに選ばせるためのIDと用途だけを提示する。
+const ANIMATION_CATALOG = [
+  {
+    id: "slideUpLetter",
+    label: "Slide up letter by letter",
+    role: "punch",
+    use: "1文字ずつ下から現れる。定番で外さない",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"up","split":"letter","scope":"element","distance":"200%","background_effect":"disabled"}],
+  },
+  {
+    id: "slideUpLetterClipped",
+    label: "Slide up letter by letter clipped",
+    role: "punch",
+    use: "1文字ずつ下から。切り抜き付きで引き締まる",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"up","split":"letter","scope":"split-clip"}],
+  },
+  {
+    id: "rollLetters360",
+    label: "Roll letters 360",
+    role: "punch",
+    use: "1文字ずつ1回転。強いインパクト",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-spin","split":"letter","distance":"0%","rotation":"360°"}],
+  },
+  {
+    id: "rollLettersUp",
+    label: "Roll letters up",
+    role: "punch",
+    use: "1文字ずつ縦に回転。数字や価格に映える",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-spin","split":"letter","direction":"left"}],
+  },
+  {
+    id: "rollLetters200down",
+    label: "Roll letters 200down",
+    role: "punch",
+    use: "1文字ずつ上から回転落下。勢いがある",
+    animations: [{"time":0,"duration":1,"easing":"elastic-out","type":"text-spin","split":"letter","distance":"200%","direction":"down"}],
+  },
+  {
+    id: "flyingLetter",
+    label: "Flying in letter by letter",
+    role: "punch",
+    use: "1文字ずつ飛んでくる。躍動感",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-fly","split":"letter"}],
+  },
+  {
+    id: "wavingLetter",
+    label: "Waving in letter by letter",
+    role: "punch",
+    use: "1文字ずつ波打つ。楽しい・かわいい",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-wave","split":"letter","overlap":"50%"}],
+  },
+  {
+    id: "appearLetterRandomly",
+    label: "Appear letter by letter randomly",
+    role: "punch",
+    use: "1文字ずつランダムに出現。意外性",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-appear","split":"letter","order":"random"}],
+  },
+  {
+    id: "textScaleCenter",
+    label: "Text scale center",
+    role: "punch",
+    use: "中央から拡大。王道の強調",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-scale","split":"line"}],
+  },
+  {
+    id: "textScaleUp",
+    label: "Text scale up",
+    role: "punch",
+    use: "下から拡大しながら出る",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-scale","split":"line","axis":"y","y_anchor":"100%"}],
+  },
+  {
+    id: "slideUpLine",
+    label: "Slide up line by line",
+    role: "hook",
+    use: "下からスライド。最も自然で読みやすい",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"up","split":"line","scope":"element","distance":"200%","background_effect":"disabled"}],
+  },
+  {
+    id: "slideUpLineClipped",
+    label: "Slide up line by line clipped",
+    role: "hook",
+    use: "下からスライド＋切り抜き。締まった印象",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"up","split":"line","scope":"split-clip"}],
+  },
+  {
+    id: "slideLeftLine",
+    label: "Slide left line by line",
+    role: "hook",
+    use: "右から流れ込む",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"left","split":"line","scope":"element","distance":"200%","background_effect":"disabled"}],
+  },
+  {
+    id: "slideRightLine",
+    label: "Slide right line by line",
+    role: "hook",
+    use: "左から流れ込む",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"right","split":"line","scope":"element","distance":"200%","background_effect":"disabled"}],
+  },
+  {
+    id: "textRevealUp",
+    label: "Text reveal up",
+    role: "hook",
+    use: "下から徐々に現れる。上品",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-reveal","split":"line","axis":"y","y_anchor":"100%"}],
+  },
+  {
+    id: "textRevealLeft",
+    label: "Text reveal left",
+    role: "hook",
+    use: "右から徐々に現れる",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-reveal","split":"line","axis":"x","x_anchor":"100%"}],
+  },
+  {
+    id: "textTypewriting",
+    label: "Text typewriting",
+    role: "hook",
+    use: "タイプライター風。じらして引き込む",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-typewriter"}],
+  },
+  {
+    id: "appearLine",
+    label: "Appear line by line",
+    role: "hook",
+    use: "静かに出現。落ち着いた導入",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-appear","split":"line"}],
+  },
+  {
+    id: "appearLineRandomly",
+    label: "Appear line by line randomly",
+    role: "info",
+    use: "ふわっと出現。主張しすぎない",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-appear","split":"line","order":"random"}],
+  },
+  {
+    id: "textRevealCenter",
+    label: "Text reveal center",
+    role: "info",
+    use: "中央から広がる。上品",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-reveal","split":"line"}],
+  },
+  {
+    id: "textRevealHorizontal",
+    label: "Text reveal horizontal",
+    role: "info",
+    use: "横に広がる",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-reveal","split":"line","axis":"x"}],
+  },
+  {
+    id: "slideDownLine",
+    label: "Slide down line by line",
+    role: "info",
+    use: "上からスライド",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"down","split":"line","scope":"element","distance":"200%","background_effect":"disabled"}],
+  },
+  {
+    id: "textScaleCenterVertical",
+    label: "Text scale center vertical",
+    role: "info",
+    use: "縦方向に開く",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-scale","split":"line","axis":"y"}],
+  },
+  {
+    id: "wavingLine",
+    label: "Waving in line by line",
+    role: "info",
+    use: "軽く波打つ。柔らかい",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-wave","split":"line","overlap":"50%"}],
+  },
+  {
+    id: "slideUpWord",
+    label: "Slide up word by word",
+    role: "cta",
+    use: "単語ごとに下から。読ませたい文に",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-slide","direction":"up","split":"word","scope":"element","distance":"200%","background_effect":"disabled"}],
+  },
+  {
+    id: "appearWord",
+    label: "Appear word by word",
+    role: "cta",
+    use: "単語ごとに出現。テンポが出る",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-appear","split":"word"}],
+  },
+  {
+    id: "textScaleCorner",
+    label: "Text scale corner",
+    role: "cta",
+    use: "角から拡大。動きが目に留まる",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-scale","split":"line","x_anchor":"0%","y_anchor":"100%"}],
+  },
+  {
+    id: "flyingLine",
+    label: "Flying in line by line",
+    role: "cta",
+    use: "飛び込んでくる。行動を促す勢い",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-fly","split":"line"}],
+  },
+  {
+    id: "wavingWord",
+    label: "Waving in word by word",
+    role: "cta",
+    use: "単語ごとに波打つ。親しみやすい",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-wave","split":"word","overlap":"50%"}],
+  },
+  {
+    id: "textRevealDown",
+    label: "Text reveal down",
+    role: "cta",
+    use: "上から現れる。締めに使いやすい",
+    animations: [{"time":0,"duration":1,"easing":"quadratic-out","type":"text-reveal","split":"line","axis":"y","y_anchor":"0%"}],
+  },
+];
+
+const ANIMATION_IDS = new Set(ANIMATION_CATALOG.map(a => a.id));
+
+/** role ごとの既定アニメーション（AIが選ばなかった・不正なIDのときの受け皿） */
+const ROLE_DEFAULT_ANIMATION = {
+  hook:  "slideUpLine",
+  punch: "slideUpLetter",
+  info:  "appearLineRandomly",
+  cta:   "slideUpWord",
+};
+
+/** プロンプトに埋め込むアニメーション一覧テキスト（roleごとに分けて見せる） */
+function animationCatalogText() {
+  const byRole = { punch: [], hook: [], info: [], cta: [] };
+  for (const a of ANIMATION_CATALOG) {
+    if (byRole[a.role]) byRole[a.role].push(`  ${a.id}｜${a.use}`);
+  }
+  const roleLabel = { punch: "punch（主役）向き", hook: "hook（引き）向き", info: "info（補足）向き", cta: "cta（行動喚起）向き" };
+  return Object.entries(byRole)
+    .map(([role, items]) => `【${roleLabel[role]}】\n${items.join(String.fromCharCode(10))}`)
+    .join(String.fromCharCode(10) + String.fromCharCode(10));
+}
+
 // ── フォントカタログ ───────────────────────────────
 // konishiさんがCreatomateへアップロードし、ウェイトまで確認済みの28種類。
 // AIに「ネタとブランドの雰囲気に合うフォント」を選ばせるために使う。
@@ -187,6 +433,7 @@ function buildFallbackFromWords(words, duration, brandFontId = null) {
       emphasis: isPunch ? "highlight" : "none",
       styleId: ROLE_DEFAULT_STYLE[role] || ROLE_DEFAULT_STYLE.info,
       fontId:  brandFontId || ROLE_DEFAULT_FONT[role] || ROLE_DEFAULT_FONT.info,
+      animationId: ROLE_DEFAULT_ANIMATION[role] || ROLE_DEFAULT_ANIMATION.info,
     };
   });
 }
@@ -239,6 +486,11 @@ function sanitize(captions, duration, brandFontId = null) {
         fontId:   brandFontId
                     ? brandFontId
                     : (FONT_IDS.has(c.fontId) ? c.fontId : (ROLE_DEFAULT_FONT[role] || ROLE_DEFAULT_FONT.info)),
+        // アニメーションは必ず何か付ける（無しだと素人っぽく見えるため）。
+        // AIが不正なIDを返した場合も、roleごとの既定アニメーションに丸める
+        animationId: ANIMATION_IDS.has(c.animationId)
+                    ? c.animationId
+                    : (ROLE_DEFAULT_ANIMATION[role] || ROLE_DEFAULT_ANIMATION.info),
       };
     })
     .sort((a, b) => a.start - b.start);
@@ -320,7 +572,47 @@ ${fontCatalogText()}
 - 装飾用途に振り切った書体（DotGothic16のようなドット絵風など）は、
   ネタが実際にその世界観を扱うときだけ使う
 - 1本の動画の中で書体をバラバラにしすぎない。基本は1〜2種類に統一し、
-  punchだけ別の書体で目立たせる程度に抑えるのが読みやすい`;
+  punchだけ別の書体で目立たせる程度に抑えるのが読みやすい
+
+【テロップのアニメーション（animationId）】
+1つ1つのテロップに、以下の一覧から必ず1つ選んでIDを指定してください。
+
+${animationCatalogText()}
+
+【アニメーション選びの考え方】
+
+■ 大原則：必ず何かしらのアニメーションを付けること
+  動きの無いテロップは、ただ文字が出ているだけで素人っぽく見えます。
+  「無し」という選択肢はありません。全てのテロップに必ず指定してください。
+
+■ 動きの性格を理解して選ぶこと
+  - 「letter（1文字ずつ）」は動きが派手で目を引くが、文字数が多いと
+    全部出るまで時間がかかる。**8文字以下の短い言葉**に使うこと。
+    価格・数字・決め台詞など、一番見せたいものに最適。
+  - 「line（行ごと）」は落ち着いていて読みやすい。**長めの文**や、
+    落ち着いた雰囲気を出したいときに使う。
+  - 「word（単語ごと）」は日本語だと区切りが不自然になることがあるので、
+    短いフレーズに限って使う。
+
+■ 表示時間との兼ね合い
+  アニメーションは約1秒かかります。表示時間が1.5秒未満のテロップに
+  派手な動き（letter系・roll系）を使うと、動き終わる前に消えてしまいます。
+  **表示が短いテロップには、素早く決まる動き（slide・appear・reveal系）**を選ぶこと。
+
+■ ブランドの雰囲気に合わせる
+  - かわいい・楽しい系（カフェ、子供向け、雑貨）
+    → waving（波打つ）、roll（回転）、flying（飛んでくる）
+  - 落ち着き・信頼系（士業、医療、不動産、高級店）
+    → reveal（徐々に現れる）、appear（静かに出現）、slide（すっと動く）
+  - 勢い・元気系（ジム、セール、若年層向け）
+    → roll360、flying、scale（拡大）
+  - じらして引き込みたいとき
+    → typewriting（タイプライター風）。ただし1本に1回まで
+
+■ 1本の動画の中でのバランス
+  全部を派手にすると目が疲れて、どれも印象に残りません。
+  **punchだけ派手に、他は控えめに**するのが基本です。
+  同じアニメーションを2つ以上のテロップで使い回さないこと。`;
 
   const instruction = hasUserWords
     ? `あなたは縦型ショート動画のテロップ設計の専門家です。
@@ -360,7 +652,7 @@ ${styleSection}
 
 【出力形式】
 以下のJSONだけを出力。前置き・解説・コードブロックは一切書かないこと。
-{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none","styleId":"CJ_S014","fontId":"zenKakuGothicNew"}]}`
+{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none","styleId":"CJ_S014","fontId":"zenKakuGothicNew","animationId":"slideUpLine"}]}`
     : `あなたは縦型ショート動画のテロップ設計の専門家です。
 ${seconds}秒の動画に載せるテロップを設計してください。
 
@@ -401,7 +693,7 @@ ${styleSection}
 
 【出力形式】
 以下のJSONだけを出力。前置き・解説・コードブロックは一切書かないこと。
-{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none","styleId":"CJ_S014","fontId":"zenKakuGothicNew"}]}`;
+{"captions":[{"text":"...","start":0,"end":1.5,"role":"hook","position":"bottom","size":"md","emphasis":"none","styleId":"CJ_S014","fontId":"zenKakuGothicNew","animationId":"slideUpLine"}]}`;
 
   let rawText = "";
 
@@ -434,6 +726,20 @@ ${styleSection}
       console.warn("指定した言葉が反映されなかったためフォールバックします:", userWords, captions.map(c => c.text));
       captions = buildFallbackFromWords(userWords, seconds, brandFontId);
     }
+
+    // Vercelのログで「AIが何を選んだか」を追えるようにする。
+    // フォント・アニメーションが意図通り選ばれているかは、
+    // 実際に動画を見るまで分からないため、記録を残しておく。
+    console.log("[generate-captions] 設計結果:", JSON.stringify(
+      captions.map(c => ({
+        role: c.role,
+        text: c.text,
+        time: `${c.start}-${c.end}s`,
+        style: c.styleId,
+        font: c.fontId,
+        anim: c.animationId,
+      }))
+    ));
 
     return res.status(200).json({ captions, usedFallback: hasUserWords && captions.every(c => c.id?.startsWith("cap_")) });
 
