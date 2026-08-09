@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { setCurrentUser } from "../lib/auth.js";
 
 function Field({ label, type = "text", value, onChange, placeholder }) {
   const [focused, setFocused] = useState(false);
@@ -58,7 +59,7 @@ export default function LoginPage() {
       }
 
       const user = data.user;
-      localStorage.setItem("posta_user", JSON.stringify(user));
+      setCurrentUser(user);
       setLoading(false);
       window.scrollTo(0, 0);
 
@@ -89,7 +90,7 @@ export default function LoginPage() {
         return;
       }
       // 登録後そのままログイン
-      localStorage.setItem("posta_user", JSON.stringify({ id: email, name: name || email, role: "user", plan: "free" }));
+      setCurrentUser({ id: email, name: name || email, role: "user", plan: "free" });
       setLoading(false);
       window.scrollTo(0, 0);
       navigate("/projects");
