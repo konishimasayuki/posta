@@ -132,6 +132,15 @@ export default async function handler(req, res) {
 
     const render = Array.isArray(data) ? data[0] : data;
 
+    // Creatomateは「指定したフォントが見つからないので別のフォントに差し替えた」
+    // といった問題を warnings で通知してくるが、エラーにはしない（黙って別の
+    // フォントでレンダリングされる）。捨てるとフォント名の綴りミスなどに
+    // 気づけなくなるため、必ずログに残し、呼び出し側にも返す。
+    const warnings = Array.isArray(render?.warnings) ? render.warnings : [];
+    if (warnings.length > 0) {
+      console.warn("[creatomate-burn] Creatomateからの警告:", JSON.stringify(warnings));
+    }
+
     return res.status(200).json({
       renderId: render?.id,
       status: render?.status,
@@ -139,6 +148,7 @@ export default async function handler(req, res) {
       modifications, // デバッグ用。実際に送った内容をそのまま返す
       skipped,        // 同じroleが重複していて焼き込まれなかったテロップ（テンプレートの枠不足）
       degradedNotes,  // グラデーション簡略化・フォント未検証などで見た目が妥協された箇所
+      warnings,       // Creatomate側の警告（フォント名の不一致など）
     });
 
   } catch (err) {
