@@ -24,7 +24,7 @@
 // 送ってもCreatomate側で無視されるだけで実害はないが、念のため絞る）。
 
 import { creatomateFetch, getTemplateId } from "./_creatomate.js";
-import { styleIdToModifications } from "./_creatomateStyles.js";
+import { styleIdToModifications, animationIdToDefinition } from "./_creatomateStyles.js";
 import { CAPTION_STYLE_DEFS } from "./_captionStyleDefs.js";
 
 const KNOWN_ROLES = new Set(["hook", "punch", "info", "cta"]);
@@ -104,6 +104,22 @@ export default async function handler(req, res) {
       if (styleResult.degraded) {
         degradedNotes.push({ role: cap.role, styleId: cap.styleId, reason: styleResult.reason });
       }
+
+      // アニメーションを適用する。
+      // Creatomateは要素ごとに animations 配列を持つので、そこを丸ごと差し替える。
+      // 動きの無いテロップは素人っぽく見えるため、必ず何か入れる方針。
+      const animDef = animationIdToDefinition(cap.animationId);
+      if (animDef) {
+        modifications[`${cap.role}.animations`] = animDef;
+      } else if (cap.animationId) {
+        // AIが存在しないIDを返した場合。テンプレート側の既定アニメーションが
+        // そのまま使われるので致命的ではないが、記録は残す
+        degradedNotes.push({
+          role: cap.role,
+          animationId: cap.animationId,
+          reason: `アニメーション「${cap.animationId}」が対応表に無いため、テンプレート既定の動きを使用`,
+        });
+      }
     }
 
     // このテンプレートは hook/punch/info/cta の4枠が常に存在する。
@@ -136,6 +152,17 @@ export default async function handler(req, res) {
     // といった問題を warnings で通知してくるが、エラーにはしない（黙って別の
     // フォントでレンダリングされる）。捨てるとフォント名の綴りミスなどに
     // 気づけなくなるため、必ずログに残し、呼び出し側にも返す。
+    // どのアニメーションで焼き込んだかをログに残す（Vercelで確認用）
+    const appliedAnims = Object.entries(modifications)
+      .filter(([k]) => k.endsWith(".animations"))
+      .map(([k, v]) => `${k.replace(".animations", "")}=${v?.[0]?.type || "?"}`);
+    if (appliedAnims.length > 0) {
+      console.log("[creatomate-burn] 適用したアニメーション:", appliedAnims.join(", "));
+    }
+    if (degradedNotes.length > 0) {
+      console.warn("[creatomate-burn] 見た目が簡略化された箇所:", JSON.stringify(degradedNotes));
+    }
+
     const warnings = Array.isArray(render?.warnings) ? render.warnings : [];
     if (warnings.length > 0) {
       console.warn("[creatomate-burn] Creatomateからの警告:", JSON.stringify(warnings));
