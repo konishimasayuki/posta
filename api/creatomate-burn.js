@@ -87,7 +87,9 @@ export default async function handler(req, res) {
       modifications[`${cap.role}.duration`] = Number(dur.toFixed(2));
 
       // 色・フォントを styleId から自動決定する
-      const styleResult = styleIdToModifications(cap.styleId, cap.role, CAPTION_STYLE_DEFS);
+      // styleId（色・装飾）とfontId（書体）は、AIがそれぞれ別の観点で選んでいる。
+      // fontIdはネタとブランドの雰囲気から選ばれたもので、styleId由来の書体より優先される。
+      const styleResult = styleIdToModifications(cap.styleId, cap.role, CAPTION_STYLE_DEFS, cap.role, cap.fontId);
       for (const [key, value] of Object.entries(styleResult.modifications)) {
         if (key.endsWith("._strokeWidthRatio")) {
           // 比率のまま送るとCreatomateが理解できないため、
