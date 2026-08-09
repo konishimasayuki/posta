@@ -3,6 +3,7 @@ import FontPicker from "../components/FontPicker.jsx";
 import { FONT_MAP, ensureFontLoaded } from "../lib/fontCatalog.js";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getCurrentUser } from "../lib/auth.js";
+import { formatRelative } from "../lib/time.js";
 
 // ─── 定数 ─────────────────────────────────────────────
 const INDUSTRIES = [
@@ -92,10 +93,68 @@ const VIDEO_PURPOSES = [
   { id: "other",     icon: "💬", label: "その他",        desc: "自由に入力" },
 ];
 const BRAND_STEPS = ["目的・基本", "ターゲット", "トーン・言葉", "ビジュアル", "動画設定"];
+/**
+ * サムネイル画像を、Redisに保存できるサイズまで小さくする。
+ *
+ * 元の画像をそのまま保存すると数MBになり、Upstashの容量を圧迫するうえ
+ * プロジェクト一覧の読み込みも重くなる。
+ * 一覧では小さくしか表示しないので、192pxの正方形に切り詰めて十分。
+ */
+function compressThumbnail(file, size = 192, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        // 中央を正方形に切り出す（縦横比が崩れないように）
+        const side = Math.min(img.width, img.height);
+        const sx = (img.width - side) / 2;
+        const sy = (img.height - side) / 2;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => reject(new Error("画像を読み込めませんでした"));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error("ファイルを読み込めませんでした"));
+    reader.readAsDataURL(file);
+  });
+}
+
+/** サムネイル選択時の処理 */
+async function handleThumbnailChange(e, set) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    const compressed = await compressThumbnail(file);
+    set("thumbnail", compressed);
+  } catch (err) {
+    console.error("サムネイルの処理に失敗:", err);
+    alert("画像を読み込めませんでした。別の画像を試してください。");
+  }
+  // 同じファイルを選び直せるようにリセットする
+  e.target.value = "";
+}
+
+// 「最近の生成」でプラットフォームのアイコンを出すために使う
+const PLATFORM_META = {
+  tiktok:    { icon: "🎵", accent: "#fe2c55" },
+  instagram: { icon: "📸", accent: "#f77737" },
+  x:         { icon: "𝕏",  accent: "#1d9bf0" },
+  note:      { icon: "📝", accent: "#41c9b4" },
+};
+
 const emptyBrand = {
   name: "", industry: "", color: "", tone: "", targets: [],
   keigo: "", fixedWords: "", bannedWords: "", font: "ai", videoType: "", videoStyle: "", bgm: "",
   purpose: "", purposeDetail: "",
+  thumbnail: null,  // 192px・JPEG圧縮済みのdataURL（未設定なら業種アイコンを表示）
 };
 const SAMPLE_PROJECTS = [
   { id: 1, name: "カフェ Lumière", industry: "restaurant", color: "orange", tone: "warm", targets: ["f_30", "family"], videoStyle: "vlog", bgm: "calm", font: "round", keigo: "desu", duration: "short", purpose: "attract", purposeDetail: "近隣の30〜40代女性・ファミリー層に来店してもらう。週末のモーニングをPRしたい。", fixedWords: "Lumière、週末モーニング", posts: 18, lastEdit: "今日",
@@ -244,6 +303,38 @@ function BrandModal({ project, onSave, onClose }) {
                 <input value={data.name} onChange={e => set("name", e.target.value)} placeholder="例：カフェ〇〇 / FitProジム"
                   style={{ width: "100%", padding: "11px 13px", borderRadius: "10px", border: "1.5px solid #e5e7eb", fontSize: "14px", outline: "none", fontFamily: "inherit", color: "#111827" }}
                   onFocus={e => e.target.style.borderColor = accent} onBlur={e => e.target.style.borderColor = "#e5e7eb"} />
+              </div>
+
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "4px" }}>サムネイル画像 <span style={{ color: "#9ca3af", fontWeight: 400, fontSize: "11px" }}>任意</span></div>
+                <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>プロジェクト一覧や探索ページで表示されます</div>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <label style={{ cursor: "pointer", flexShrink: 0 }}>
+                    <div style={{
+                      width: "64px", height: "64px", borderRadius: "14px", overflow: "hidden",
+                      border: `2px dashed ${data.thumbnail ? accent : "#e5e7eb"}`,
+                      background: data.thumbnail ? "transparent" : "#f9fafb",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {data.thumbnail
+                        ? <img src={data.thumbnail} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        : <span style={{ fontSize: "22px", color: "#9ca3af" }}>📷</span>}
+                    </div>
+                    <input type="file" accept="image/*" onChange={e => handleThumbnailChange(e, set)} style={{ display: "none" }} />
+                  </label>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "11px", color: "#6b7280", lineHeight: 1.7 }}>
+                      {data.thumbnail ? "タップして変更できます" : "タップして画像を選択"}
+                    </div>
+                    {data.thumbnail && (
+                      <button onClick={() => set("thumbnail", null)} style={{
+                        marginTop: "6px", padding: "4px 10px", borderRadius: "8px",
+                        border: "1px solid #e5e7eb", background: "#fff", color: "#9ca3af",
+                        fontSize: "10px", fontWeight: 700, cursor: "pointer",
+                      }}>削除</button>
+                    )}
+                  </div>
+                </div>
               </div>
               <div>
                 <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>業種 <span style={{ color: "#ef4444" }}>*</span></div>
@@ -410,7 +501,7 @@ function BrandModal({ project, onSave, onClose }) {
 }
 
 // ─── 画面1: プロジェクト一覧 ─────────────────────────
-function ProjectList({ projects, onSelect, onNew, onEdit, isDemo }) {
+function ProjectList({ projects, onSelect, onNew, onEdit, isDemo, getStats }) {
   return (
     <>
       <Header title="プロジェクト一覧" accentColor="#f97316"
@@ -443,6 +534,8 @@ function ProjectList({ projects, onSelect, onNew, onEdit, isDemo }) {
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {projects.map(p => {
             const color = gc(p.color); const industry = gi(p.industry);
+            // 実際の生成履歴から集計した実績（件数・最近の生成）
+            const stats = getStats ? getStats(p) : { count: 0, recent: [] };
             const tone = gt(p.tone); const video = gv(p.videoStyle);
             const bgm = gb(p.bgm); const font = gf(p.font);
             const purpose = gp(p.purpose); const keigo = gk(p.keigo);
@@ -453,10 +546,17 @@ function ProjectList({ projects, onSelect, onNew, onEdit, isDemo }) {
                 <div style={{ padding: "16px" }}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <div style={{ width: "42px", height: "42px", borderRadius: "11px", background: color?.secondary || "#fff7ed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>{industry?.icon || "📦"}</div>
+                      <div style={{ width: "42px", height: "42px", borderRadius: "11px", overflow: "hidden", background: color?.secondary || "#fff7ed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>
+                        {p.thumbnail
+                          ? <img src={p.thumbnail} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          : (industry?.icon || "📦")}
+                      </div>
                       <div>
                         <div style={{ fontSize: "15px", fontWeight: 800, color: "#111827" }}>{p.name}</div>
-                        <div style={{ fontSize: "11px", color: "#9ca3af" }}>{industry?.label} · {p.posts}件生成 · {p.lastEdit}編集</div>
+                        <div style={{ fontSize: "11px", color: "#9ca3af" }}>
+                          {industry?.label} · {stats.count}件生成
+                          {p.updatedAt && ` · ${formatRelative(p.updatedAt)}編集`}
+                        </div>
                       </div>
                     </div>
                     <button onClick={() => onEdit(p)} style={{ padding: "6px 12px", borderRadius: "8px", border: "1.5px solid #e5e7eb", background: "#fff", color: "#374151", fontWeight: 700, fontSize: "11px", cursor: "pointer", flexShrink: 0 }}>編集</button>
@@ -478,47 +578,46 @@ function ProjectList({ projects, onSelect, onNew, onEdit, isDemo }) {
                     ))}
                   </div>
 
-                  {/* 生成履歴 */}
-                  {(p.history || []).length > 0 && (
+                  {/* 最近の生成（実際の履歴から） */}
+                  {stats.recent.length > 0 && (
                     <div style={{ marginBottom: "12px" }}>
                       <div style={{ fontSize: "11px", fontWeight: 700, color: "#9ca3af", marginBottom: "7px", display: "flex", alignItems: "center", gap: "5px" }}>
                         <span>🕐</span> 最近の生成
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                        {(p.history || []).slice(0, 3).map(h => (
-                          <div key={h.id} style={{
-                            display: "flex", alignItems: "center", gap: "8px",
-                            padding: "7px 10px", borderRadius: "8px",
-                            background: "#f8f9fb", border: "1px solid #f3f4f6",
-                            cursor: "pointer", transition: "all 0.15s",
-                          }}
-                            onMouseEnter={e => { e.currentTarget.style.background = color?.secondary || "#fff7ed"; e.currentTarget.style.borderColor = color?.primary + "33" || "#f9731633"; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = "#f8f9fb"; e.currentTarget.style.borderColor = "#f3f4f6"; }}
-                          >
-                            {/* プラットフォームバッジ */}
-                            <div style={{
-                              width: "22px", height: "22px", borderRadius: "6px", flexShrink: 0,
-                              background: h.platformAccent + "18",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              fontSize: "11px",
-                            }}>{h.platformIcon}</div>
-                            {/* タイプバッジ */}
-                            <span style={{
-                              fontSize: "9px", fontWeight: 700, padding: "1px 6px", borderRadius: "10px",
-                              background: h.type === "video" ? "#7c3aed18" : "#05966918",
-                              color: h.type === "video" ? "#7c3aed" : "#059669",
-                              flexShrink: 0,
+                        {stats.recent.map(h => {
+                          const firstPlatform = (h.platforms || [])[0];
+                          const pm = PLATFORM_META[firstPlatform] || { icon: "📄", accent: "#9ca3af" };
+                          const hasVideo = !!h.videoUrl;
+                          return (
+                            <div key={h.id} style={{
+                              display: "flex", alignItems: "center", gap: "8px",
+                              padding: "7px 10px", borderRadius: "8px",
+                              background: "#f8f9fb", border: "1px solid #f3f4f6",
                             }}>
-                              {h.type === "video" ? "動画" : "投稿文"}
-                            </span>
-                            {/* トピック */}
-                            <div style={{ flex: 1, fontSize: "11px", color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {h.topic}
+                              <div style={{
+                                width: "22px", height: "22px", borderRadius: "6px", flexShrink: 0,
+                                background: pm.accent + "18",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                fontSize: "11px",
+                              }}>{pm.icon}</div>
+                              <span style={{
+                                fontSize: "9px", fontWeight: 700, padding: "1px 6px", borderRadius: "10px",
+                                background: hasVideo ? "#7c3aed18" : "#05966918",
+                                color: hasVideo ? "#7c3aed" : "#059669",
+                                flexShrink: 0,
+                              }}>
+                                {hasVideo ? "動画" : "投稿文"}
+                              </span>
+                              <div style={{ flex: 1, minWidth: 0, fontSize: "11px", color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {h.topic}
+                              </div>
+                              <div style={{ fontSize: "10px", color: "#9ca3af", flexShrink: 0 }}>
+                                {formatRelative(h.createdAt)}
+                              </div>
                             </div>
-                            {/* 時間 */}
-                            <div style={{ fontSize: "10px", color: "#9ca3af", flexShrink: 0 }}>{h.time}</div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -553,13 +652,18 @@ export default function ProjectListPage() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // APIからプロジェクトを取得
+  // 実際の生成履歴（プロジェクトごとの実績を出すために使う）
+  const [historyItems, setHistoryItems] = useState([]);
+
+  // APIからプロジェクトと履歴を取得
   useEffect(() => {
-    fetch(`/api/projects?userId=${encodeURIComponent(userId)}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.projects) {
-          const parsed = typeof data.projects === "string" ? JSON.parse(data.projects) : data.projects;
+    Promise.all([
+      fetch(`/api/projects?userId=${encodeURIComponent(userId)}`).then(r => r.json()).catch(() => ({})),
+      fetch(`/api/history?userId=${encodeURIComponent(userId)}`).then(r => r.json()).catch(() => ({ history: [] })),
+    ])
+      .then(([projData, histData]) => {
+        if (projData.projects) {
+          const parsed = typeof projData.projects === "string" ? JSON.parse(projData.projects) : projData.projects;
           if (parsed.length > 0) {
             setProjects(parsed);
           } else if (isDemo) {
@@ -568,10 +672,29 @@ export default function ProjectListPage() {
         } else if (isDemo) {
           setProjects(SAMPLE_PROJECTS);
         }
+        setHistoryItems(Array.isArray(histData.history) ? histData.history : []);
       })
       .catch(() => { if (isDemo) setProjects(SAMPLE_PROJECTS); })
       .finally(() => setLoading(false));
   }, [userId]);
+
+  /**
+   * プロジェクトごとの実績を、実際の生成履歴から集計する。
+   * 履歴には projectId が入っているので、それで紐づける。
+   * （この仕組みより前に作られた履歴には projectId が無いため、
+   *   その場合は projectName でも照合する）
+   */
+  const getProjectStats = (project) => {
+    const related = historyItems.filter(h =>
+      (h.projectId != null && String(h.projectId) === String(project.id)) ||
+      (h.projectId == null && h.projectName === project.name)
+    );
+    return {
+      count: related.length,
+      // 新しい順に3件だけ「最近の生成」として見せる
+      recent: related.slice(0, 3),
+    };
+  };
 
   // BottomNavのPボタンから来た時モーダルを開く
   useEffect(() => {
@@ -607,11 +730,13 @@ export default function ProjectListPage() {
   const handleSave = (data) => {
     let newProjects;
     if (data.id) {
-      newProjects = projects.map(p => p.id === data.id ? { ...p, ...data, lastEdit: "今" } : p);
+      // lastEdit は "今" のような固定文字列だったため、実際の日時に置き換える
+      // （表示側で formatRelative を使って「3日前」等に変換する）
+      newProjects = projects.map(p => p.id === data.id ? { ...p, ...data, updatedAt: new Date().toISOString() } : p);
       setProjects(newProjects);
       showToast("ブランド設定を更新しました");
     } else {
-      const newP = { ...data, id: Date.now(), posts: 0, lastEdit: "今" };
+      const newP = { ...data, id: Date.now(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
       newProjects = [...projects, newP];
       setProjects(newProjects);
       showToast("新規プロジェクトを作成しました");
@@ -631,7 +756,7 @@ export default function ProjectListPage() {
           </div>
         </div>
       ) : (
-        <ProjectList projects={projects} onSelect={handleSelect} onNew={() => setModal("new")} onEdit={p => setModal(p)} isDemo={isDemo} />
+        <ProjectList projects={projects} onSelect={handleSelect} onNew={() => setModal("new")} onEdit={p => setModal(p)} isDemo={isDemo} getStats={getProjectStats} />
       )}
       {modal && <BrandModal project={modal === "new" ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
     </div>
