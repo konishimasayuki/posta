@@ -207,7 +207,7 @@ function Toast({ msg }) {
 
 function Header({ title, onBack, accentColor, rightEl }) {
   return (
-    <div style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "0 16px", position: "sticky", top: 0, zIndex: 100 }}>
+    <div className="posta-header" style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "0 16px", position: "sticky", top: 0, zIndex: 100 }}>
       <div style={{ width: "100%", padding: "14px 0", display: "flex", alignItems: "center", gap: "10px" }}>
         {onBack && <button onClick={onBack} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#6b7280", padding: "0 4px 0 0" }}>←</button>}
         <div style={{ fontSize: "20px", fontWeight: 900, letterSpacing: "-0.03em" }}>
