@@ -271,6 +271,7 @@ function DetailModal({ item, onClose }) {
             sourceId: current.id,
             userName: getCurrentUser()?.name || "名無し",
             projectName: current.projectName,
+            projectThumb: current.projectThumb || null,
             title: current.topic,
             videoUrl: current.videoUrl,
             videoDirection: current.videoDirection || "",
