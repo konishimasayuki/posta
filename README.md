@@ -1,6 +1,6 @@
 # Posta — 引き継ぎ書・仕様書
 
-最終更新：2026年8月8日
+最終更新：2026年8月9日
 
 ---
 
@@ -104,6 +104,8 @@ Cloudinary関連の環境変数は使用していない。
 │   ├── _creatomateStyles.js   captionStyles.jsonの色/フォントをCreatomate形式に変換
 │   ├── _captionStyleDefs.js   captionStyles.jsonの色/フチ/フォント定義をサーバー用に複製
 │   ├── _captionStyles.js      ⚠️不使用。generate-captions.jsに内容を直接埋め込み済み（後述）
+│   ├── _animations.js         アニメーション30種の元データ（135種から厳選）
+│   ├── explore.js             探索ページ（公開作品・いいね）
 │   ├── users.js               ログイン認証・ユーザー登録
 │   ├── projects.js            プロジェクト保存・取得
 │   ├── history.js             履歴保存・取得・削除
@@ -354,6 +356,8 @@ punch            ：16.14 vmin
 | `styleId` の fill | `{role}.fill_color` |
 | `styleId` の stroke | `{role}.stroke_color` + `{role}.stroke_width`（vmin換算） |
 | `styleId` の font | `{role}.font_family` + `{role}.font_weight` |
+| `fontId`（AI選択・ブランド設定優先） | `{role}.font_family` + `{role}.font_weight` |
+| `animationId`（AI選択） | `{role}.animations` |
 | 動画全体の尺 | `duration`（トップレベル。無指定だとテンプレート既定の48.05秒になる） |
 
 変換ロジックは `api/_creatomateStyles.js`、色・フォントの実データは
@@ -432,6 +436,52 @@ Creatomateへのアップロードと太さの確認を、konishiさんが一括
 レンダーして`warnings`が出ないか確認→対応表の`verified`を`true`に、
 という手順が要る。自動化はできていない（手作業）。
 
+### アニメーション（30種）
+
+テロップの動きは `api/_animations.js` に元データ（135種）があり、
+そこから実用的な30種を厳選して `generate-captions.js` に埋め込んでいる。
+AIがネタ・ブランドの雰囲気・表示時間を見て、テロップごとに1つ選ぶ。
+
+**「アニメーション無し」という選択肢は用意していない。**
+動きの無いテロップは素人っぽく見えるため、必ず何か付ける方針。
+AIが選ばなかった・不正なIDを返した場合も、roleごとの既定に丸められる。
+
+#### split（分割単位）の違いが重要
+
+| split | 動き | 向いている用途 |
+|---|---|---|
+| letter | 1文字ずつ動く | 8文字以下の短い言葉。価格・決め台詞（punch向き） |
+| word | 単語ごとに動く | 短いフレーズ。日本語は区切りが曖昧なので使い所を選ぶ |
+| line | 行ごとに動く | 長めの文。落ち着いた雰囲気 |
+
+以前「1文字ずつ動かすのは無理」と判断していたが、これは誤りだった。
+`split: "letter"` を指定すれば1文字ずつ動く（23種が対応）。
+
+#### 役割ごとの内訳
+
+| role | 種類数 | 方向性 |
+|---|---|---|
+| punch | 10種 | 1文字ずつの派手な動き。roll（回転）・flying（飛来）・waving（波打ち）など |
+| hook | 8種 | 読みやすく目を引く。typewriting（タイプライター）も含む |
+| info | 6種 | 控えめで読みやすい。reveal・appear系 |
+| cta | 6種 | 目に留まるが読める。word単位が中心 |
+
+#### 表示時間との兼ね合い（AIへの指示に含めている）
+
+アニメーションは約1秒かかる。表示が1.5秒未満のテロップに派手な動き
+（letter系・roll系）を使うと、動き終わる前に消えてしまう。
+短いテロップには素早く決まる動き（slide・appear・reveal系）を選ぶよう
+プロンプトで指示している。
+
+#### ファイル間のID一致に注意
+
+`generate-captions.js` の `ANIMATION_CATALOG`（AIに提示する一覧）と、
+`_creatomateStyles.js` の `ANIMATION_DEFS`（実際の定義）は、
+**キーが完全に一致していないと動かない**。片方だけ変更すると、
+AIが選んだアニメーションが黙って無視される。
+
+---
+
 ### 色の落とし穴（要注意）
 
 `captionStyles.json` はブラウザのCSS向けデータなので、`rgba(90,62,10,0.45)`
@@ -465,8 +515,11 @@ Creatomateへのアップロードと太さの確認を、konishiさんが一括
       `_creatomateStyles.js`に登録済み。ただしcaptionStyles.jsonの50スタイル
       からはまだ参照されていない（既存6カテゴリのみ使用中）
 - [ ] reggae・brushフォントの検証がまだ（今回のリストには含まれず）
-- [ ] 拡張フォントパレット（28種）を、実際にどこでどう使うか設計する
-      （50スタイルの一部に割り当てる／新しいスタイルを追加する等）
+- [x] 拡張フォントパレット（28種）をAIが選べるようにした（2026-08-09）
+      ブランド設定で書体を指定していればそれが最優先、
+      「AIお任せ」のときだけAIが雰囲気から選ぶ
+- [x] アニメーション30種をAIが選べるようにした（2026-08-09）
+      全テロップに必ず何か付ける方針。表示時間・文字数も考慮して選ばせている
 - [ ] 動画の再エンコードに伴う画質劣化は、Kling→Creatomateの構造上
       避けにくい（動画を一度展開して合成し、再圧縮するため）
 
