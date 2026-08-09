@@ -145,7 +145,7 @@ export default function AdminPage() {
       )}
 
       {/* ヘッダー */}
-      <div style={{ background: "#111827", padding: "0 20px", position: "sticky", top: 0, zIndex: 100, borderBottom: "1px solid #374151" }}>
+      <div className="posta-header" style={{ background: "#111827", padding: "0 20px", position: "sticky", top: 0, zIndex: 100, borderBottom: "1px solid #374151" }}>
         <div style={{ maxWidth: "900px", margin: "0 auto", padding: "14px 0", display: "flex", alignItems: "center", gap: "10px" }}>
           <div onClick={() => navigate("/projects")} style={{ fontSize: "20px", fontWeight: 900, letterSpacing: "-0.03em", cursor: "pointer" }}>
             <span style={{ color: "#f97316" }}>Po</span><span style={{ color: "#fff" }}>sta</span>
