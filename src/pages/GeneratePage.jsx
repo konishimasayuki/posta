@@ -337,6 +337,7 @@ export default function GeneratePage() {
   const [videoUrl, setVideoUrl] = useState(job?.videoUrl || null);        // Klingが生成した、文字なしの動画URL
   const [burnedVideoUrl, setBurnedVideoUrl] = useState(job?.burnedVideoUrl || null); // テロップ焼き込み後の動画URL（あればこちらを優先表示）
   const [burnError, setBurnError] = useState(job?.burnError || null);       // 焼き込みに失敗した場合の理由
+  const [burnWarnings, setBurnWarnings] = useState(job?.burnWarnings || []); // Creatomateからの警告（フォント名の不一致など）
   const [videoError, setVideoError] = useState(job?.videoError || null);    // 動画生成の失敗理由
   const [klingPrompt, setKlingPrompt] = useState(job?.klingPrompt || "");    // 生成に使った英語プロンプト
   const [videoElapsed, setVideoElapsed] = useState(jobElapsed || 0);   // 動画生成の経過秒数
@@ -358,6 +359,7 @@ export default function GeneratePage() {
   const burnedVideoUrlRef = useRef(null);
   const videoErrorRef = useRef(null);
   const burnErrorRef = useRef(null);
+  const burnWarningsRef = useRef([]);
   const klingPromptRef = useRef("");
   const captionsRef = useRef([]);
 
@@ -492,7 +494,18 @@ export default function GeneratePage() {
         const res = await fetch(`/api/creatomate-status?renderId=${encodeURIComponent(renderId)}`);
         const data = await res.json();
 
-        if (data.status === "succeeded") return data.url;
+        if (data.status === "succeeded") {
+          // 完了時にも警告が付いてくることがあるので拾う
+          if (data.warnings?.length > 0) {
+            console.warn("Creatomateからの警告(完了時):", data.warnings);
+            setBurnWarnings(prev => {
+              const merged = [...new Set([...prev, ...data.warnings])];
+              burnWarningsRef.current = merged;
+              return merged;
+            });
+          }
+          return data.url;
+        }
         if (data.status === "failed") throw new Error(data.error || "テロップの焼き込みに失敗しました");
         consecutiveErrors = 0;
       } catch (err) {
@@ -516,6 +529,8 @@ export default function GeneratePage() {
     setBurnedVideoUrl(null);
     setBurnError(null);
     burnErrorRef.current = null;
+    setBurnWarnings([]);
+    burnWarningsRef.current = [];
     videoUrlRef.current = null;
     generatedTextsRef.current = {};
     klingPromptRef.current = "";
@@ -666,6 +681,17 @@ export default function GeneratePage() {
           if (!burnRes.ok || !burnData.renderId) {
             throw new Error(burnData.error || "焼き込みを開始できませんでした");
           }
+
+          // Creatomateからの警告（フォント名の不一致など）を拾っておく。
+          // レンダリング自体は成功してしまうため、これを見ないと
+          // 「意図と違うフォントで焼き込まれた」ことに気づけない。
+          if (burnData.warnings?.length > 0) {
+            console.warn("Creatomateからの警告:", burnData.warnings);
+            setBurnWarnings(burnData.warnings);
+            burnWarningsRef.current = burnData.warnings;
+            updateJob({ burnWarnings: burnData.warnings });
+          }
+
           const finalUrl = await pollBurn(burnData.renderId);
           setBurnedVideoUrl(finalUrl);
           burnedVideoUrlRef.current = finalUrl;
@@ -700,6 +726,7 @@ export default function GeneratePage() {
       burnedVideoUrl: burnedVideoUrlRef.current,
       videoError: videoErrorRef.current,
       burnError: burnErrorRef.current,
+      burnWarnings: burnWarningsRef.current,
       captions: captionsRef.current,
       generatedTexts: generatedTextsRef.current,
       klingPrompt: klingPromptRef.current,
@@ -1350,6 +1377,22 @@ export default function GeneratePage() {
                   ⚠️ テロップの焼き込みに失敗したため、文字なしの動画を表示しています<br />
                   <span style={{ color: "#b45309", fontSize: "10px" }}>{burnError}</span>
                 </div>
+              )}
+
+              {/* 焼き込みは成功したが、警告があった場合のお知らせ。
+                  フォント名の不一致などは、エラーにならず黙って別のフォントで
+                  レンダリングされてしまうため、必ず画面にも出す */}
+              {!burnError && burnWarnings.length > 0 && (
+                <details style={{ marginBottom: "12px", padding: "10px 12px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px" }}>
+                  <summary style={{ fontSize: "11px", color: "#92400e", fontWeight: 700, cursor: "pointer" }}>
+                    ⚠️ 意図と違う書体で焼き込まれた可能性があります（{burnWarnings.length}件）
+                  </summary>
+                  <div style={{ marginTop: "8px", fontSize: "10px", color: "#b45309", lineHeight: 1.7 }}>
+                    {burnWarnings.map((w, i) => (
+                      <div key={i} style={{ marginBottom: "4px", wordBreak: "break-word" }}>・{w}</div>
+                    ))}
+                  </div>
+                </details>
               )}
 
               {/* 動画プレビュー + DLボタン */}
