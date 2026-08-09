@@ -58,6 +58,44 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── 更新 ──────────────────────────────
+  // 履歴からテロップを作り直したときなど、既存の1件を書き換える。
+  // idで対象を特定し、渡されたフィールドだけを上書きする（差分更新）。
+  if (req.method === "PUT") {
+    try {
+      const { id, patch } = req.body || {};
+      if (!id) return res.status(400).json({ error: "id が必要です" });
+      if (!patch || typeof patch !== "object") {
+        return res.status(400).json({ error: "patch が必要です" });
+      }
+
+      const history = getArray(await redis.get(key));
+      const index = history.findIndex(h => String(h.id) === String(id));
+      if (index === -1) {
+        return res.status(404).json({ error: "対象の履歴が見つかりません" });
+      }
+
+      // 保存サイズを抑えるため、長文は既存の追加処理と同じ基準で切り詰める
+      const cleanedPatch = { ...patch };
+      if (cleanedPatch.postTexts) {
+        cleanedPatch.postTexts = Object.fromEntries(
+          Object.entries(cleanedPatch.postTexts).map(([k, v]) => [k, truncate(v, MAX_TEXT_LENGTH)])
+        );
+      }
+      if (cleanedPatch.klingPrompt) cleanedPatch.klingPrompt = truncate(cleanedPatch.klingPrompt, 1000);
+      if (cleanedPatch.topic) cleanedPatch.topic = truncate(cleanedPatch.topic, 200);
+
+      history[index] = { ...history[index], ...cleanedPatch };
+      await redis.set(key, JSON.stringify(history));
+
+      return res.status(200).json({ ok: true, item: history[index] });
+
+    } catch (err) {
+      console.error("history PUT error:", err);
+      return res.status(500).json({ error: "履歴の更新に失敗しました" });
+    }
+  }
+
   // ── 削除 ──────────────────────────────
   if (req.method === "DELETE") {
     try {
