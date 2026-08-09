@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import CaptionOverlay from "../components/CaptionOverlay.jsx";
 import { resolveAccent } from "../lib/fonts.js";
 import { formatRelative, formatJstFull } from "../lib/time.js";
-import { getCurrentUser } from "../lib/auth.js";
+import { getCurrentUser, getUserId } from "../lib/auth.js";
 
 const HISTORY = [
   { id: 1, projectName: "カフェ Lumière", projectColor: "#ea580c", projectSecondary: "#fff7ed", projectIcon: "🍽",
@@ -51,7 +51,17 @@ const PLATFORM_META = {
   note:      { icon: "📝", label: "note",       accent: "#41c9b4" },
 };
 
-const DURATION_LABEL = { short: "〜15秒", medium: "30〜60秒", long: "1〜3分" };
+// GeneratePage の DURATION_OPTIONS と対応させること。
+// Klingは5秒か10秒しか生成できないため、実尺は xs=5 / sm=10 に丸められる。
+const DURATION_LABEL = {
+  xs: "〜5秒", sm: "6〜10秒", md: "11〜20秒", lg: "21〜30秒",
+  // 旧データ互換（この仕組みより前に保存された履歴用）
+  short: "〜5秒", medium: "〜10秒", long: "〜10秒",
+};
+const DURATION_SECONDS = {
+  xs: 5, sm: 10, md: 10, lg: 10,
+  short: 5, medium: 10, long: 10,
+};
 
 /**
  * この動画が「すでに文字を焼き込み済み」かどうかを判定する。
@@ -194,13 +204,129 @@ function HistoryCard({ item, onDetail }) {
 
 // 詳細モーダル
 function DetailModal({ item, onClose }) {
+  // 初期値は引数の item を使う（current はこの下で定義されるため、ここではまだ使えない）
   const [activeTab, setActiveTab] = useState(item.platforms[0]);
   const [copied, setCopied] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [videoTime, setVideoTime] = useState(0);
   const [showCaptions, setShowCaptions] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenStep, setRegenStep] = useState("");   // 進行状況の表示用
+  const [regenError, setRegenError] = useState(null);
+  const [localItem, setLocalItem] = useState(item); // 作り直し後の内容を即座に反映するため
   const videoRef = useRef(null);
+
+  // 作り直し後は localItem を参照する（元の item は書き換わらないため）
+  const current = localItem;
+
+  /** Creatomateの焼き込み完了を待つ */
+  const pollBurn = async (renderId) => {
+    const INTERVAL = 3000;
+    const MAX_TRIES = 40;   // 最大2分
+    let consecutiveErrors = 0;
+
+    for (let i = 0; i < MAX_TRIES; i++) {
+      await new Promise(r => setTimeout(r, INTERVAL));
+      try {
+        const res = await fetch(`/api/creatomate-status?renderId=${encodeURIComponent(renderId)}`);
+        const data = await res.json();
+        if (data.status === "succeeded") return data.url;
+        if (data.status === "failed") throw new Error(data.error || "焼き込みに失敗しました");
+        consecutiveErrors = 0;
+      } catch (err) {
+        consecutiveErrors++;
+        if (consecutiveErrors >= 3) throw err;
+      }
+    }
+    throw new Error("焼き込みに時間がかかりすぎています");
+  };
+
+  /**
+   * テロップを作り直して、動画に焼き込み直す。
+   * 焼き込みはCreatomateのクレジットを消費するため、必ず確認を取る。
+   */
+  const handleRegenerate = async () => {
+    // 元のKling動画（文字なし）が無いと、焼き込み直せない。
+    // 焼き込み済みの動画に再度焼くと文字が二重になるため。
+    const source = current.rawVideoUrl;
+    if (!source) {
+      setRegenError("この作品には元動画が保存されていないため、作り直せません（この機能より前に作られた作品です）");
+      return;
+    }
+
+    const ok = window.confirm(
+      "テロップを作り直して、動画に焼き込み直します。\n" +
+      "動画の生成クレジットを消費します。よろしいですか？"
+    );
+    if (!ok) return;
+
+    setRegenerating(true);
+    setRegenError(null);
+
+    try {
+      // ① テロップを設計し直す
+      setRegenStep("テロップを設計中...");
+      const capRes = await fetch("/api/generate-captions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: { ...(current.brand || {}), name: current.projectName },
+          neta: current.topic,
+          duration: DURATION_SECONDS[current.duration] || 5,
+        }),
+      });
+      const capData = await capRes.json();
+      if (!capData.captions?.length) {
+        throw new Error(capData.error || "テロップの設計に失敗しました");
+      }
+
+      // ② 焼き込み直す
+      setRegenStep("動画に焼き込み中...");
+      const burnRes = await fetch("/api/creatomate-burn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl: source,
+          videoDuration: DURATION_SECONDS[current.duration] || 5,
+          captions: capData.captions,
+        }),
+      });
+      const burnData = await burnRes.json();
+      if (!burnRes.ok || !burnData.renderId) {
+        throw new Error(burnData.error || "焼き込みを開始できませんでした");
+      }
+      if (burnData.warnings?.length > 0) {
+        console.warn("Creatomateからの警告:", burnData.warnings);
+      }
+
+      const newUrl = await pollBurn(burnData.renderId);
+
+      // ③ 履歴を更新する
+      setRegenStep("保存中...");
+      const patch = {
+        videoUrl: newUrl,
+        videoThumb: newUrl,
+        captions: capData.captions,
+        isBurned: true,
+      };
+      await fetch("/api/history", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: getUserId(), id: current.id, patch }),
+      });
+
+      // 画面にも即座に反映する
+      setLocalItem(prev => ({ ...prev, ...patch }));
+      setRegenStep("");
+
+    } catch (err) {
+      console.error("regenerate error:", err);
+      setRegenError(err.message || "作り直しに失敗しました");
+      setRegenStep("");
+    }
+    setRegenerating(false);
+  };
 
   const handleSaveVideo = async (url) => {
     if (!url || saving) return;
@@ -241,22 +367,22 @@ function DetailModal({ item, onClose }) {
         {/* ヘッダー */}
         <div style={{ padding: "16px 20px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: "15px", fontWeight: 800, color: "#111827" }}>{item.topic}</div>
-            <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "2px" }}>{item.projectName} · {formatJstFull(item.createdAt) || item.createdAt}</div>
+            <div style={{ fontSize: "15px", fontWeight: 800, color: "#111827" }}>{current.topic}</div>
+            <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "2px" }}>{current.projectName} · {formatJstFull(current.createdAt) || current.createdAt}</div>
           </div>
           <button onClick={onClose} style={{ width: "30px", height: "30px", borderRadius: "50%", border: "none", background: "#f3f4f6", fontSize: "14px", cursor: "pointer" }}>✕</button>
         </div>
 
         <div style={{ overflowY: "auto", padding: "16px 20px 24px" }}>
           {/* 動画 */}
-          {(item.videoUrl || item.videoThumb) && (
+          {(current.videoUrl || current.videoThumb) && (
             <div style={{ marginBottom: "16px" }}>
               <div style={{ fontSize: "12px", fontWeight: 800, color: "#374151", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
                 🎬 生成された動画
-                <span style={{ fontSize: "10px", fontWeight: 600, color: "#9ca3af" }}>· {DURATION_LABEL[item.duration]}</span>
+                <span style={{ fontSize: "10px", fontWeight: 600, color: "#9ca3af" }}>· {DURATION_LABEL[current.duration]}</span>
                 {/* 焼き込み済みの動画は文字を消せない（映像そのものに含まれるため）
                     ので、トグル自体を出さない */}
-                {!isBurnedVideo(item) && item.captions?.length > 0 && (
+                {!isBurnedVideo(item) && current.captions?.length > 0 && (
                   <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
                     <input
                       type="checkbox"
@@ -271,11 +397,11 @@ function DetailModal({ item, onClose }) {
                 )}
               </div>
               <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                {item.videoUrl ? (
+                {current.videoUrl ? (
                   <div style={{ position: "relative", width: "150px", height: "267px", borderRadius: "10px", overflow: "hidden", background: "#000", flexShrink: 0 }}>
                     <video
                       ref={videoRef}
-                      src={item.videoUrl}
+                      src={current.videoUrl}
                       controls
                       loop
                       playsInline
@@ -284,18 +410,18 @@ function DetailModal({ item, onClose }) {
                     />
                     {/* 焼き込み済みの動画は、文字がすでに映像そのものに含まれているため
                         プレビュー用のCaptionOverlayは重ねない（二重表示防止） */}
-                    {!isBurnedVideo(item) && showCaptions && item.captions?.length > 0 && (
+                    {!isBurnedVideo(item) && showCaptions && current.captions?.length > 0 && (
                       <CaptionOverlay
-                        captions={item.captions}
+                        captions={current.captions}
                         currentTime={videoTime}
                         width={150}
-                        accent={resolveAccent(item.brand || {}, item.projectColor)}
-                        project={item.brand || {}}
+                        accent={resolveAccent(current.brand || {}, current.projectColor)}
+                        project={current.brand || {}}
                       />
                     )}
                   </div>
                 ) : (
-                  <VideoThumb color={item.videoThumb} />
+                  <VideoThumb color={current.videoThumb} />
                 )}
                 <div style={{ flex: 1 }}>
                   {[["形式","MP4"],["比率","9:16"]].map(([k,v]) => (
@@ -304,13 +430,13 @@ function DetailModal({ item, onClose }) {
                       <span style={{ fontWeight: 700, color: "#374151" }}>{v}</span>
                     </div>
                   ))}
-                  {item.videoUrl ? (
+                  {current.videoUrl ? (
                     <button
-                      onClick={() => handleSaveVideo(item.videoUrl)}
+                      onClick={() => handleSaveVideo(current.videoUrl)}
                       disabled={saving}
                       style={{
                         display: "block", width: "100%", marginTop: "8px", padding: "9px", borderRadius: "9px", border: "none",
-                        background: downloaded ? "#10b981" : `linear-gradient(135deg, ${item.projectColor}, ${item.projectColor}cc)`,
+                        background: downloaded ? "#10b981" : `linear-gradient(135deg, ${current.projectColor}, ${current.projectColor}cc)`,
                         color: "#fff", fontWeight: 700, fontSize: "11px", textAlign: "center",
                         cursor: saving ? "default" : "pointer",
                       }}
@@ -324,6 +450,33 @@ function DetailModal({ item, onClose }) {
                   )}
                 </div>
               </div>
+
+              {/* テロップを作り直す（焼き込みまでやり直すのでクレジットを消費する） */}
+              {current.rawVideoUrl && (
+                <>
+                  <button
+                    onClick={handleRegenerate}
+                    disabled={regenerating}
+                    style={{
+                      width: "100%", marginTop: "12px", padding: "10px", borderRadius: "10px",
+                      border: "1.5px solid #e5e7eb", background: regenerating ? "#f9fafb" : "#fff",
+                      color: regenerating ? "#9ca3af" : "#374151",
+                      fontWeight: 700, fontSize: "12px", cursor: regenerating ? "default" : "pointer",
+                    }}
+                  >
+                    {regenerating ? (regenStep || "処理中...") : "↻ 別のパターンで作り直す"}
+                  </button>
+                  <div style={{ fontSize: "10px", color: "#9ca3af", textAlign: "center", marginTop: "5px", lineHeight: 1.6 }}>
+                    テロップを設計し直して、動画に焼き込み直します（クレジットを消費します）
+                  </div>
+                </>
+              )}
+
+              {regenError && (
+                <div style={{ marginTop: "8px", padding: "10px 12px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", fontSize: "11px", color: "#b91c1c", lineHeight: 1.7 }}>
+                  {regenError}
+                </div>
+              )}
             </div>
           )}
 
@@ -331,7 +484,7 @@ function DetailModal({ item, onClose }) {
           <div>
             <div style={{ fontSize: "12px", fontWeight: 800, color: "#374151", marginBottom: "10px" }}>📝 投稿文</div>
             <div style={{ display: "flex", gap: "0", background: "#f3f4f6", borderRadius: "10px", padding: "3px", marginBottom: "10px" }}>
-              {item.platforms.map(p => {
+              {current.platforms.map(p => {
                 const meta = PLATFORM_META[p];
                 return (
                   <button key={p} onClick={() => setActiveTab(p)} style={{
@@ -351,7 +504,7 @@ function DetailModal({ item, onClose }) {
             <div style={{ background: currentP?.accent + "10", borderRadius: "12px", border: `1px solid ${currentP?.accent}22`, overflow: "hidden" }}>
               <div style={{ padding: "12px 14px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${currentP?.accent}22` }}>
                 <span style={{ fontSize: "12px", fontWeight: 700, color: "#374151" }}>{currentP?.icon} {currentP?.label}用</span>
-                <button onClick={() => { navigator.clipboard.writeText(item.postTexts?.[activeTab] || item.postText || ""); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{
+                <button onClick={() => { navigator.clipboard.writeText(current.postTexts?.[activeTab] || current.postText || ""); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{
                   padding: "5px 12px", borderRadius: "8px", border: "none",
                   background: copied ? "#10b981" : currentP?.accent, color: "#fff",
                   fontWeight: 700, fontSize: "11px", cursor: "pointer",
@@ -360,7 +513,7 @@ function DetailModal({ item, onClose }) {
                 </button>
               </div>
               <div style={{ padding: "12px 14px", fontSize: "12px", lineHeight: 1.9, color: "#374151", whiteSpace: "pre-wrap" }}>
-                {item.postTexts?.[activeTab] || item.postText || "（投稿文が保存されていません）"}
+                {current.postTexts?.[activeTab] || current.postText || "（投稿文が保存されていません）"}
               </div>
             </div>
           </div>
