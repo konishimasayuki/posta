@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import FontPicker from "../components/FontPicker.jsx";
+import { FONT_MAP, ensureFontLoaded } from "../lib/fontCatalog.js";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 // ─── 定数 ─────────────────────────────────────────────
@@ -51,16 +53,8 @@ const COLORS = [
   { id: "teal",   primary: "#0d9488", secondary: "#f0fdfa", label: "ティール" },
   { id: "gray",   primary: "#374151", secondary: "#f9fafb", label: "モノクロ" },
 ];
-const FONTS = [
-  { id: "ai",       label: "AIお任せ",   desc: "毎回最適を自動選択" },
-  { id: "gothic",   label: "ゴシック体", desc: "読みやすい・定番" },
-  { id: "mincho",   label: "明朝体",     desc: "上品・高級感" },
-  { id: "round",    label: "丸ゴシック", desc: "かわいい・やわらか" },
-  { id: "serif",    label: "セリフ体",   desc: "欧文・エレガント" },
-  { id: "display",  label: "ディスプレイ",desc: "インパクト・見出し向け" },
-  { id: "handwrite",label: "手書き風",   desc: "温かみ・親近感" },
-  { id: "mono",     label: "等幅体",     desc: "テック・クール・無機質" },
-];
+// フォントの選択肢は src/lib/fontCatalog.js の28種に移行済み。
+// 旧FONTS定数（7種類）はどこからも参照されなくなったため削除した。
 const VIDEO_TYPES = [
   { id: "realpeople",  icon: "🎥", label: "実写・人物あり",     desc: "自撮り・スタッフ・お客様" },
   { id: "realnoperson",icon: "🏠", label: "実写・人物なし",     desc: "商品・空間・料理・景色" },
@@ -131,7 +125,14 @@ const gi = id => INDUSTRIES.find(i => i.id === id);
 const gt = id => TONES.find(t => t.id === id);
 const gv = id => VIDEO_STYLES.find(v => v.id === id);
 const gb = id => BGM_STYLES.find(b => b.id === id);
-const gf = id => FONTS.find(f => f.id === id);
+// フォントは新しいカタログ（28種）を参照する。
+// "ai"（AIお任せ）や、旧設定の値（gothic/mincho等）はカタログに無いので、
+// その場合は「AIお任せ」として表示する。
+const gf = id => {
+  if (!id || id === "ai") return { label: "AIお任せ" };
+  const f = FONT_MAP[id];
+  return f ? { label: f.name } : { label: "AIお任せ" };
+};
 const gp = id => VIDEO_PURPOSES.find(p => p.id === id);
 const gk = id => KEIGO.find(k => k.id === id);
 
@@ -185,10 +186,17 @@ function ChipGrid({ items, selected, onToggle, multi = false, cols = 3, accent =
 // ─── ブランド設定モーダル ─────────────────────────────
 function BrandModal({ project, onSave, onClose }) {
   const [step, setStep] = useState(0);
+  const [fontPickerOpen, setFontPickerOpen] = useState(false);
   const [data, setData] = useState(project ? { ...emptyBrand, ...project } : emptyBrand);
   const set = (k, v) => setData(p => ({ ...p, [k]: v }));
   const toggle = (k, id) => { const cur = data[k] || []; set(k, cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]); };
   const accent = gc(data.color)?.primary || "#f97316";
+
+  // 選択中のフォントを、プレビュー表示のために読み込んでおく
+  useEffect(() => {
+    const f = FONT_MAP[data.font];
+    if (f) ensureFontLoaded(f);
+  }, [data.font]);
   const stepValid = [
     !!data.name && !!data.industry && !!data.purpose,
     (data.targets || []).length > 0,
@@ -321,19 +329,38 @@ function BrandModal({ project, onSave, onClose }) {
               </div>
               <div>
                 <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "4px" }}>フォント <span style={{ color: "#ef4444" }}>*</span></div>
-                <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>「AIお任せ」は設定を優先参照しながら毎回最適を選択</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                  {FONTS.map(f => {
-                    const sel = data.font === f.id;
-                    return (
-                      <div key={f.id} onClick={() => set("font", f.id)} style={{ padding: "13px", borderRadius: "11px", cursor: "pointer", border: `1.5px solid ${sel ? accent : "#e5e7eb"}`, background: sel ? accent + "12" : "#fff", transition: "all 0.15s", position: "relative" }}>
-                        {f.id === "ai" && <span style={{ position: "absolute", top: "7px", right: "7px", fontSize: "9px", fontWeight: 700, background: "#fef9c3", color: "#a16207", padding: "1px 6px", borderRadius: "10px" }}>推奨</span>}
-                        <div style={{ fontSize: "18px", fontWeight: 700, color: sel ? accent : "#374151", marginBottom: "3px" }}>{f.id === "ai" ? "✨" : "Aa"}</div>
-                        <div style={{ fontSize: "12px", fontWeight: 700, color: sel ? accent : "#374151" }}>{f.label}</div>
-                        <div style={{ fontSize: "10px", color: "#9ca3af" }}>{f.desc}</div>
+                <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>「AIお任せ」はネタと設定に合わせて毎回最適な書体を選択</div>
+
+                <div onClick={() => setFontPickerOpen(true)} style={{
+                  padding: "0", borderRadius: "12px", cursor: "pointer", overflow: "hidden",
+                  border: `1.5px solid ${accent}`, background: "#fff",
+                }}>
+                  {data.font === "ai" || !FONT_MAP[data.font] ? (
+                    <div style={{ padding: "16px", display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span style={{ fontSize: "20px" }}>✨</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 800, color: accent }}>AIお任せ</div>
+                        <div style={{ fontSize: "10px", color: "#9ca3af", marginTop: "2px" }}>タップして書体を選ぶ（全28種）</div>
                       </div>
-                    );
-                  })}
+                      <span style={{ fontSize: "16px", color: "#9ca3af" }}>›</span>
+                    </div>
+                  ) : (
+                    <>
+                      {/* 選択中の書体を、実際の見た目で表示する */}
+                      <div style={{ background: "#6b7280", padding: "14px 10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+                        <span style={{ fontFamily: `'${FONT_MAP[data.font].name}', sans-serif`, fontWeight: FONT_MAP[data.font].weight, fontSize: "20px", color: "#111827" }}>あア亜</span>
+                        <span style={{ fontFamily: `'${FONT_MAP[data.font].name}', sans-serif`, fontWeight: FONT_MAP[data.font].weight, fontSize: "20px", color: accent, WebkitTextStroke: "3px #ffffff", paintOrder: "stroke fill" }}>あア亜</span>
+                        <span style={{ fontFamily: `'${FONT_MAP[data.font].name}', sans-serif`, fontWeight: FONT_MAP[data.font].weight, fontSize: "20px", color: "#fff", textShadow: "2px 2px 0 #111827" }}>あア亜</span>
+                      </div>
+                      <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: "12px", fontWeight: 800, color: accent }}>{FONT_MAP[data.font].name}</div>
+                          <div style={{ fontSize: "10px", color: "#9ca3af", marginTop: "2px" }}>タップして変更</div>
+                        </div>
+                        <span style={{ fontSize: "16px", color: "#9ca3af" }}>›</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -369,6 +396,14 @@ function BrandModal({ project, onSave, onClose }) {
           )}
         </div>
       </div>
+
+      {fontPickerOpen && (
+        <FontPicker
+          value={data.font}
+          onSelect={id => set("font", id)}
+          onClose={() => setFontPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }
