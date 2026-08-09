@@ -12,9 +12,17 @@ export default async function handler(req, res) {
   try {
     const data = await creatomateFetch(`/renders/${renderId}`, { method: "GET" });
 
+    // フォント名の不一致などの警告は、レンダリングを止めずに進行するため
+    // 気づかれにくい。完了時にも必ずログへ残す。
+    const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+    if (warnings.length > 0) {
+      console.warn(`[creatomate-status] renderId=${renderId} の警告:`, JSON.stringify(warnings));
+    }
+
     return res.status(200).json({
       status: data.status,      // planned / waiting / transcribing / rendering / succeeded / failed
       url: data.url || null,
+      warnings,
       raw: data,
     });
 
