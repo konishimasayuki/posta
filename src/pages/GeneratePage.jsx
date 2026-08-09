@@ -350,6 +350,33 @@ export default function GeneratePage() {
   const [wordCandidatesLoading, setWordCandidatesLoading] = useState(false);
   const [captionsLoading, setCaptionsLoading] = useState(false);
   const [videoTime, setVideoTime] = useState(0);
+  const [appliedTemplate, setAppliedTemplate] = useState(null); // 探索から適用したテンプレの情報
+
+  // 探索ページから「このテンプレで作る」で来た場合、演出・ネタ・テロップ案を引き継ぐ。
+  // 引き継ぐのは「何を・どう見せるか」だけで、書体や色は引き継がない
+  // （このプロジェクトのブランド設定をそのまま使うため）。
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("posta_template");
+      if (!raw) return;
+      const t = JSON.parse(raw);
+
+      if (t.videoDirection) setVideoDirection(t.videoDirection);
+      if (t.topic) setNeta(t.topic);
+      if (Array.isArray(t.captionTexts) && t.captionTexts.length > 0) {
+        setCaptionWords(t.captionTexts.slice(0, 6));
+      }
+      if (t.duration) setDuration(t.duration);
+      if (Array.isArray(t.platforms) && t.platforms.length > 0) setSelected(t.platforms);
+
+      setAppliedTemplate({ title: t.sourceTitle || "" });
+
+      // 一度使ったら消す（次に開いたときに勝手に再適用されないように）
+      sessionStorage.removeItem("posta_template");
+    } catch (err) {
+      console.error("テンプレートの読み込みに失敗:", err);
+    }
+  }, []);
   const videoRef = useRef(null);
 
   // setStateの反映を待たずに最新値を参照するためのref
@@ -761,6 +788,9 @@ export default function GeneratePage() {
         // 素材として必要になる（焼き込み済みの動画に再度焼き込むと文字が二重になるため）
         rawVideoUrl: finalRawVideo || null,
         klingPrompt: klingPromptRef.current || "",
+        // 探索ページでテンプレとして共有するときの中身。
+        // 「どんな演出をさせたか」が一番参考になる情報なので必ず残す
+        videoDirection: videoDirection || "",
         captions: captionsRef.current || [],
         brand: {
           font:     PROJECT.font || "ai",
@@ -940,6 +970,23 @@ export default function GeneratePage() {
                 </div>
               </div>
             </div>
+
+            {/* 探索からテンプレを適用した場合のお知らせ */}
+            {appliedTemplate && (
+              <div style={{ background: "#fff7ed", borderRadius: "12px", border: "1px solid #fed7aa", padding: "12px 14px", display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                <span style={{ fontSize: "16px", flexShrink: 0 }}>🔍</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "12px", fontWeight: 800, color: "#c2410c" }}>
+                    テンプレートを適用しました
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#9a3412", marginTop: "3px", lineHeight: 1.7 }}>
+                    {appliedTemplate.title && `「${appliedTemplate.title}」の`}演出とテロップの構成を引き継いでいます。
+                    書体・色はこのプロジェクトのブランド設定が使われます。
+                  </div>
+                </div>
+                <button onClick={() => setAppliedTemplate(null)} style={{ border: "none", background: "none", cursor: "pointer", color: "#c2410c", fontSize: "14px", padding: 0, flexShrink: 0 }}>✕</button>
+              </div>
+            )}
 
             {/* 写真素材 */}
             <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px" }}>
