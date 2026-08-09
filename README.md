@@ -333,7 +333,26 @@ Creatomate → 設計どおりに実際の動画ファイルへ焼き込む
 |---|---|
 | テンプレート名 | posta-caption-v1 |
 | template_id | `e8ecbc3a-ec7d-4fe7-919a-e1a3db3ac920` |
-| 要素構成 | `background`（動画）+ `hook` `punch` `info` `cta`（テキスト×4） |
+| 要素構成 | `background`（動画）+ テキスト8枠 |
+
+#### テロップの枠（2026-08-09に4→8枠へ拡張）
+
+| role | 枠名 | 上限 |
+|---|---|---|
+| hook | `hook` | 1個 |
+| punch | `punch`, `punch2` | 2個 |
+| info | `info`, `info2`, `info3`, `info4` | 4個 |
+| cta | `cta` | 1個 |
+
+既存の名前（`hook` `punch` `info` `cta`）は変えず、追加分だけ番号を付けている。
+過去の履歴データとの互換性を保つため。
+
+**枠を増やすときは3箇所を同時に直すこと。**
+1. Creatomateのテンプレートに要素を追加（手作業）
+2. `api/creatomate-burn.js` の `ROLE_SLOTS` と `ELEMENT_FONT_SIZE_VMIN`
+3. `api/generate-captions.js` の `.slice(0, 8)` と、プロンプト内の上限説明
+
+どれか1つでも漏れると、AIが設計したテロップが黙って捨てられる。
 
 テンプレートは1個のみ。役割（hook/punch/info/cta）ごとに4つの枠を
 あらかじめ用意しておき、そこへ内容を差し込む方式なので、デザインの
