@@ -32,7 +32,7 @@ export const CREATOMATE_FONTS = {
   // 2026-08-08：konishiさんが実際にCreatomateへアップロードし、
   // ウェイトを確認済み（NotoSansJPとして登録。900まで使用可）。
   gothic: {
-    family: "NotoSansJP",
+    family: "Noto Sans JP",
     weight: "900",
     verified: true,
     verifiedAt: "2026-08-08",
@@ -78,7 +78,7 @@ export const CREATOMATE_FONTS = {
   iBMPlexSansJP: { family: "IBM Plex Sans JP", weight: "700", verified: true, verifiedAt: "2026-08-08" }, // インダストリアル・テック・企業的
   kaiseiDecol: { family: "Kaisei Decol", weight: "700", verified: true, verifiedAt: "2026-08-08" }, // 和モダン・レトロかわいい
   kiwiMaru: { family: "Kiwi Maru", weight: "500", verified: true, verifiedAt: "2026-08-08" }, // やわらかく可憐・少しレトロ
-  kleeOne: { family: "KleeOne", weight: "600", verified: true, verifiedAt: "2026-08-08" }, // 手書きの誠実さ・学校のノート・国語教材
+  kleeOne: { family: "Klee One", weight: "600", verified: true, verifiedAt: "2026-08-08" }, // 手書きの誠実さ・学校のノート・国語教材
   kosugi: { family: "Kosugi", weight: "400", verified: true, verifiedAt: "2026-08-08" }, // ニュートラル・実務的・地味
   kosugiMaru: { family: "Kosugi Maru", weight: "400", verified: true, verifiedAt: "2026-08-08" }, // 素朴・気取らない・カジュアル
   mPLUS1: { family: "M PLUS 1", weight: "900", verified: true, verifiedAt: "2026-08-08" }, // today的・都会的・力強いが冷静
@@ -87,18 +87,18 @@ export const CREATOMATE_FONTS = {
   mPLUSRounded1c: { family: "M PLUS Rounded 1c", weight: "900", verified: true, verifiedAt: "2026-08-08" }, // やわらかいのに強い
   mochiyPopOne: { family: "Mochiy Pop One", weight: "400", verified: true, verifiedAt: "2026-08-08" }, // かわいい・元気・子供っぽいポップさ
   murecho: { family: "Murecho", weight: "900", verified: true, verifiedAt: "2026-08-08" }, // 洗練・ミニマル・落ち着いたモダンさ
-  notoSansJP: { family: "NotoSansJP", weight: "900", verified: true, verifiedAt: "2026-08-08" }, // 中立・信頼感・汎用
-  rocknRollOne: { family: "RocknRollOne", weight: "400", verified: true, verifiedAt: "2026-08-08" }, // 陽気・カジュアル・軽いポップさ
-  sawarabiGothic: { family: "SawarabiGothic", weight: "400", verified: true, verifiedAt: "2026-08-08" }, // 素朴で控えめ・和の落ち着き
+  notoSansJP: { family: "Noto Sans JP", weight: "900", verified: true, verifiedAt: "2026-08-08" }, // 中立・信頼感・汎用
+  rocknRollOne: { family: "RocknRoll One", weight: "400", verified: true, verifiedAt: "2026-08-08" }, // 陽気・カジュアル・軽いポップさ
+  sawarabiGothic: { family: "Sawarabi Gothic", weight: "400", verified: true, verifiedAt: "2026-08-08" }, // 素朴で控えめ・和の落ち着き
   shipporiMincho: { family: "Shippori Mincho", weight: "800", verified: true, verifiedAt: "2026-08-08" }, // 端正で凛とした和の重厚感
-  shipporiMinchoB1: { family: "ShipporiMinchoB1", weight: "800", verified: true, verifiedAt: "2026-08-08" }, // 凛とした和の重厚感・高級・伝統
+  shipporiMinchoB1: { family: "Shippori Mincho B1", weight: "800", verified: true, verifiedAt: "2026-08-08" }, // 凛とした和の重厚感・高級・伝統
   yuseiMagic: { family: "Yusei Magic", weight: "400", verified: true, verifiedAt: "2026-08-08" }, // 手作り感・親しみ・チラシや黒板書きの温度感
   zenAntiqueSoft: { family: "Zen Antique Soft", weight: "400", verified: true, verifiedAt: "2026-08-08" }, // 漫画の吹き出し・古書・昭和レトロ
   zenKakuGothicAntique: { family: "Zen Kaku Gothic Antique", weight: "900", verified: true, verifiedAt: "2026-08-08" }, // レトロで温かみのある角ゴ
   zenKakuGothicNew: { family: "Zen Kaku Gothic New", weight: "900", verified: true, verifiedAt: "2026-08-08" }, // 信頼感・端正・ビジネス寄り
   zenMaruGothic: { family: "Zen Maru Gothic", weight: "900", verified: true, verifiedAt: "2026-08-08" }, // やわらかいのに存在感がある
   zenOldMincho: { family: "Zen Old Mincho", weight: "900", verified: true, verifiedAt: "2026-08-08" }, // 重厚・和風・格式
-  zenKurenaido: { family: "ZenKurenaido", weight: "400", verified: true, verifiedAt: "2026-08-08" }, // 素朴・親しみやすい・ノートの走り書き
+  zenKurenaido: { family: "Zen Kurenaido", weight: "400", verified: true, verifiedAt: "2026-08-08" }, // 素朴・親しみやすい・ノートの走り書き
 };
 
 /** 未確認のフォントを使う場合のフォールバック先（Creatomate標準搭載） */
