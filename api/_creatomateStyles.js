@@ -218,22 +218,42 @@ function extractApproximateColor(fillObj) {
  * @param {object} styleDefs     _captionStyleDefs.js の CAPTION_STYLE_DEFS
  * @param {string} fallbackRole  styleIdが不正だった場合に使う既定スタイル選びの手がかり
  */
-export function styleIdToModifications(styleId, elementName, styleDefs, fallbackRole = "info") {
+export function styleIdToModifications(styleId, elementName, styleDefs, fallbackRole = "info", fontId = null) {
   const style = styleDefs[styleId];
 
   if (!style) {
     // 不正なstyleIdは、無地の白文字にフォールバックする（焼き込み自体は止めない）
+    // ただし書体だけはAIの選択（fontId）を尊重する
+    const fontEntry = fontId ? CREATOMATE_FONTS[fontId] : null;
+    const useFont = fontEntry?.verified ? fontEntry : FALLBACK_FONT;
     return {
       modifications: {
         [`${elementName}.fill_color`]: "#ffffff",
         [`${elementName}.stroke_color`]: "#000000",
-        [`${elementName}.font_family`]: FALLBACK_FONT.family,
-        [`${elementName}.font_weight`]: FALLBACK_FONT.weight,
+        [`${elementName}.font_family`]: useFont.family,
+        [`${elementName}.font_weight`]: useFont.weight,
       },
       degraded: true,
       reason: `styleId「${styleId}」が見つからないため既定の白文字にフォールバック`,
     };
   }
 
-  return styleToModifications(style, elementName);
+  const result = styleToModifications(style, elementName);
+
+  // AIがネタとブランドの雰囲気から選んだ書体があれば、
+  // styleId由来の書体より優先して上書きする。
+  // （styleIdは「色・装飾」を、fontIdは「書体」を担当する分業）
+  if (fontId) {
+    const fontEntry = CREATOMATE_FONTS[fontId];
+    if (fontEntry?.verified) {
+      result.modifications[`${elementName}.font_family`] = fontEntry.family;
+      result.modifications[`${elementName}.font_weight`] = fontEntry.weight;
+    } else {
+      result.degraded = true;
+      result.reason = (result.reason ? result.reason + " / " : "") +
+        `書体「${fontId}」は未検証または未登録のため既定書体で代用`;
+    }
+  }
+
+  return result;
 }
