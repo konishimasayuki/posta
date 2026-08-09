@@ -95,7 +95,7 @@ const FONT_CATALOG = [
   { id: "iBMPlexSansJP", label: "IBM Plex Sans JP", use: "インダストリアル・テック・企業的。英数字が特にきれい" },
   { id: "kaiseiDecol", label: "Kaisei Decol", use: "和モダン・レトロかわいい。和菓子や着物、昭和喫茶の空気" },
   { id: "kiwiMaru", label: "Kiwi Maru", use: "やわらかく可憐・少しレトロ。文学的でやさしい" },
-  { id: "kleeOne", label: "KleeOne", use: "手書きの誠実さ・学校のノート・国語教材。やさしく真面目で、ノスタルジック" },
+  { id: "kleeOne", label: "Klee One", use: "手書きの誠実さ・学校のノート・国語教材。やさしく真面目で、ノスタルジック" },
   { id: "kosugi", label: "Kosugi", use: "ニュートラル・実務的・地味。無個性を活かしたい場面向き" },
   { id: "kosugiMaru", label: "Kosugi Maru", use: "素朴・気取らない・カジュアル。本文寄りの丸ゴ" },
   { id: "mPLUS1", label: "M PLUS 1", use: "today的・都会的・力強いが冷静。テック系の見出し" },
@@ -104,18 +104,18 @@ const FONT_CATALOG = [
   { id: "mPLUSRounded1c", label: "M PLUS Rounded 1c", use: "やわらかいのに強い。親しみやすく万能、UIの見出しにも合う" },
   { id: "mochiyPopOne", label: "Mochiy Pop One", use: "かわいい・元気・子供っぽいポップさ。お菓子や子供向け販促の感じ" },
   { id: "murecho", label: "Murecho", use: "洗練・ミニマル・落ち着いたモダンさ。ブランド見出し向き" },
-  { id: "notoSansJP", label: "NotoSansJP", use: "中立・信頼感・汎用。どんな内容にも馴染む安全牌で、企業やUIの見出しに強い" },
-  { id: "rocknRollOne", label: "RocknRollOne", use: "陽気・カジュアル・軽いポップさ。POPやSNS画像など、勢いを出したい場面向き" },
-  { id: "sawarabiGothic", label: "SawarabiGothic", use: "素朴で控えめ・和の落ち着き。本文や補足テキスト向きで、主張は弱い" },
+  { id: "notoSansJP", label: "Noto Sans JP", use: "中立・信頼感・汎用。どんな内容にも馴染む安全牌で、企業やUIの見出しに強い" },
+  { id: "rocknRollOne", label: "RocknRoll One", use: "陽気・カジュアル・軽いポップさ。POPやSNS画像など、勢いを出したい場面向き" },
+  { id: "sawarabiGothic", label: "Sawarabi Gothic", use: "素朴で控えめ・和の落ち着き。本文や補足テキスト向きで、主張は弱い" },
   { id: "shipporiMincho", label: "Shippori Mincho", use: "端正で凛とした和の重厚感。伝統的・高級・落ち着き。書籍タイトル、和食・日本酒・旅館、時代物の見出しに向く" },
-  { id: "shipporiMinchoB1", label: "ShipporiMinchoB1", use: "凛とした和の重厚感・高級・伝統。書籍タイトル、和食や日本酒、時代物の見出しに合う" },
+  { id: "shipporiMinchoB1", label: "Shippori Mincho B1", use: "凛とした和の重厚感・高級・伝統。書籍タイトル、和食や日本酒、時代物の見出しに合う" },
   { id: "yuseiMagic", label: "Yusei Magic", use: "手作り感・親しみ・チラシや黒板書きの温度感" },
   { id: "zenAntiqueSoft", label: "Zen Antique Soft", use: "漫画の吹き出し・古書・昭和レトロ。素朴で懐かしい" },
   { id: "zenKakuGothicAntique", label: "Zen Kaku Gothic Antique", use: "レトロで温かみのある角ゴ。和のニュアンスを少し帯びる" },
   { id: "zenKakuGothicNew", label: "Zen Kaku Gothic New", use: "信頼感・端正・ビジネス寄り。汎用の強調に安全牌" },
   { id: "zenMaruGothic", label: "Zen Maru Gothic", use: "やわらかいのに存在感がある。穏やかで上品なかわいさ。医療・教育・ベビー・食品系の見出しに合う" },
   { id: "zenOldMincho", label: "Zen Old Mincho", use: "重厚・和風・格式。書籍タイトル、日本酒や旅館の見出し" },
-  { id: "zenKurenaido", label: "ZenKurenaido", use: "素朴・親しみやすい・ノートの走り書き。かわいすぎず落ち着いた手書き感" },
+  { id: "zenKurenaido", label: "Zen Kurenaido", use: "素朴・親しみやすい・ノートの走り書き。かわいすぎず落ち着いた手書き感" },
 ];
 
 const FONT_IDS = new Set(FONT_CATALOG.map(f => f.id));
@@ -161,7 +161,7 @@ const ROLES = ["hook", "punch", "info", "cta"];
  * 「500円と表示させ続けたい」のような指定を、AIが書き換えたり
  * 落としたりした場合でも確実に反映するための最終手段。
  */
-function buildFallbackFromWords(words, duration) {
+function buildFallbackFromWords(words, duration, brandFontId = null) {
   const n = words.length;
   if (n === 0) return [];
 
@@ -186,7 +186,7 @@ function buildFallbackFromWords(words, duration) {
       size: isPunch ? "xl" : "md",
       emphasis: isPunch ? "highlight" : "none",
       styleId: ROLE_DEFAULT_STYLE[role] || ROLE_DEFAULT_STYLE.info,
-      fontId:  ROLE_DEFAULT_FONT[role] || ROLE_DEFAULT_FONT.info,
+      fontId:  brandFontId || ROLE_DEFAULT_FONT[role] || ROLE_DEFAULT_FONT.info,
     };
   });
 }
@@ -201,7 +201,7 @@ const SIZES = ["sm", "md", "lg", "xl"];
 const EMPHASIS = ["none", "box", "underline", "highlight"];
 
 /** AIの出力を安全な値に丸める */
-function sanitize(captions, duration) {
+function sanitize(captions, duration, brandFontId = null) {
   if (!Array.isArray(captions)) return [];
 
   const MIN_SHOW = 0.8; // 最低表示秒数
@@ -230,8 +230,15 @@ function sanitize(captions, duration) {
         emphasis: EMPHASIS.includes(c.emphasis) ? c.emphasis : "none",
         // 存在しないスタイルIDを返してきた場合は role ごとの既定に丸める
         styleId:  CAPTION_STYLE_IDS.has(c.styleId) ? c.styleId : (ROLE_DEFAULT_STYLE[role] || ROLE_DEFAULT_STYLE.info),
-        // 書体も同様。存在しないIDならroleごとの既定フォントに丸める
-        fontId:   FONT_IDS.has(c.fontId) ? c.fontId : (ROLE_DEFAULT_FONT[role] || ROLE_DEFAULT_FONT.info),
+        // 書体の決定順：
+        //   ① ブランド設定で具体的な書体が指定されていれば、それを最優先
+        //      （ユーザーが「このブランドはこの書体」と意図的に決めたルールなので、
+        //        AIが毎回変えるとブランドの一貫性が崩れる）
+        //   ② 「AIお任せ」の場合のみ、AIが雰囲気から選んだ書体を使う
+        //   ③ どちらも無効ならroleごとの既定フォント
+        fontId:   brandFontId
+                    ? brandFontId
+                    : (FONT_IDS.has(c.fontId) ? c.fontId : (ROLE_DEFAULT_FONT[role] || ROLE_DEFAULT_FONT.info)),
       };
     })
     .sort((a, b) => a.start - b.start);
@@ -270,6 +277,12 @@ export default async function handler(req, res) {
   const seconds = Number(duration) || 5;
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const brandInfo = describeProject(project);
+
+  // ブランド設定で具体的な書体が指定されているか判定する。
+  // "ai"（AIお任せ）や、対応表に無い値の場合は null にして、AIに選ばせる。
+  const brandFontId = (project.font && project.font !== "ai" && FONT_IDS.has(project.font))
+    ? project.font
+    : null;
 
   // ユーザーがテロップの言葉を直接指定した場合は、その言葉「だけ」を材料にする。
   // AIが新しい文言を作り出すことはせず、役割の割り当てとタイミングだけを判断する。
@@ -407,19 +420,19 @@ ${styleSection}
     }
 
     const parsed = JSON.parse(jsonStr);
-    let captions = sanitize(parsed.captions, seconds);
+    let captions = sanitize(parsed.captions, seconds, brandFontId);
 
     if (captions.length === 0) {
       if (hasUserWords) {
         // AIが空を返した場合でも、指定された言葉だけは確実に出す
-        captions = buildFallbackFromWords(userWords, seconds);
+        captions = buildFallbackFromWords(userWords, seconds, brandFontId);
       } else {
         return res.status(500).json({ error: "テロップが空でした", raw: rawText.slice(0, 300) });
       }
     } else if (hasUserWords && !containsAllWords(captions, userWords)) {
       // AIが言葉を書き換えた・落とした場合は、指定通りの機械的な配置に差し替える
       console.warn("指定した言葉が反映されなかったためフォールバックします:", userWords, captions.map(c => c.text));
-      captions = buildFallbackFromWords(userWords, seconds);
+      captions = buildFallbackFromWords(userWords, seconds, brandFontId);
     }
 
     return res.status(200).json({ captions, usedFallback: hasUserWords && captions.every(c => c.id?.startsWith("cap_")) });
