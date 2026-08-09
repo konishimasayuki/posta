@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import FontPicker from "../components/FontPicker.jsx";
 import { FONT_MAP, ensureFontLoaded } from "../lib/fontCatalog.js";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { getCurrentUser } from "../lib/auth.js";
 
 // ─── 定数 ─────────────────────────────────────────────
 const INDUSTRIES = [
@@ -544,9 +545,7 @@ function ProjectList({ projects, onSelect, onNew, onEdit, isDemo }) {
 export default function ProjectListPage() {
   const navigate = useNavigate();
 
-  const currentUser = (() => {
-    try { return JSON.parse(localStorage.getItem("posta_user")); } catch { return null; }
-  })();
+  const currentUser = getCurrentUser();
   const isDemo = currentUser?.role === "demo";
   const userId = currentUser?.id || "guest";
 
@@ -598,7 +597,10 @@ export default function ProjectListPage() {
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2500); };
 
   const handleSelect = (project) => {
-    sessionStorage.setItem("posta_project", JSON.stringify(project));
+    // タスクを切っても選択状態が消えないよう、localStorageに保存する
+    // （sessionStorageだとタブを閉じた時点で消え、次に開いたときに
+    //   プロジェクト未選択の状態になってしまう）
+    localStorage.setItem("posta_project", JSON.stringify(project));
     navigate("/generate");
   };
 
