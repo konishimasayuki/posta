@@ -29,15 +29,29 @@ import { CAPTION_STYLE_DEFS } from "./_captionStyleDefs.js";
 
 const KNOWN_ROLES = new Set(["hook", "punch", "info", "cta"]);
 
-// テンプレート（posta-caption-v1）の各要素の文字サイズ。2026-08-07 実測。
+// テンプレート（posta-caption-v1）に用意されている枠。
+// 同じroleでも複数のテロップを焼き込めるよう、2026-08-09に4→8枠へ拡張した。
+// 既存の名前（hook/punch/info/cta）は変えず、追加分だけ番号を付けている
+// （過去の履歴データとの互換性を保つため）。
+const ROLE_SLOTS = {
+  hook:  ["hook"],
+  punch: ["punch", "punch2"],
+  info:  ["info", "info2", "info3", "info4"],
+  cta:   ["cta"],
+};
+
+// テンプレート各要素の文字サイズ。2026-08-07 実測。
 // 縁取り幅は「文字サイズに対する比率」で持っているため、実際のvmin値に
 // 変換するのに使う。テンプレート側のfont_sizeを変えたら、ここも直すこと。
 const ELEMENT_FONT_SIZE_VMIN = {
   hook: 6.94,
-  info: 6.94,
+  info: 6.94, info2: 6.94, info3: 6.94, info4: 6.94,
   cta: 6.94,
-  punch: 16.14,
+  punch: 16.14, punch2: 16.14,
 };
+
+/** テンプレートに存在する全ての枠名 */
+const ALL_SLOTS = Object.values(ROLE_SLOTS).flat();
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
@@ -59,11 +73,10 @@ export default async function handler(req, res) {
       "duration": Number(videoDuration) || 5,
     };
 
-    // テンプレートには hook/punch/info/cta が1枠ずつしか無い。
-    // Postaが設計するテロップは、同じroleが複数（例：infoが2個）になることが
-    // 普通にある。1枠に2つ流し込むと後勝ちで静かに消えてしまうため、
-    // 各roleは最初の1件だけを使い、残りは skipped として明示的に記録する。
-    const usedRoles = new Set();
+    // 同じroleでも複数のテロップを焼き込めるよう、roleごとに複数の枠を持つ。
+    // 枠を使い切ったぶんだけ skipped に記録して、消えたことが分かるようにする。
+    const slotCursor = {};       // role => 次に使う枠のインデックス
+    const usedSlots = new Set(); // 実際に使った枠名（未使用枠を空にするため）
     const skipped = [];
 
     const degradedNotes = []; // グラデーション簡略化・フォント未検証など、見た目が妥協された箇所の記録
@@ -72,37 +85,45 @@ export default async function handler(req, res) {
       if (!cap || typeof cap.text !== "string" || !cap.text.trim()) continue;
       if (!KNOWN_ROLES.has(cap.role)) continue;
 
-      if (usedRoles.has(cap.role)) {
-        skipped.push({ role: cap.role, text: cap.text.trim() });
+      // このroleに割り当てられた枠のうち、まだ使っていないものを取る
+      const slots = ROLE_SLOTS[cap.role] || [];
+      const cursor = slotCursor[cap.role] || 0;
+      if (cursor >= slots.length) {
+        // 枠を使い切った。テンプレートに枠を足さない限り、これ以上は焼き込めない
+        skipped.push({ role: cap.role, text: cap.text.trim(), reason: "枠が不足" });
         continue;
       }
-      usedRoles.add(cap.role);
+      const slot = slots[cursor];
+      slotCursor[cap.role] = cursor + 1;
+      usedSlots.add(slot);
 
       const start = Math.max(0, Number(cap.start) || 0);
       const end = Number(cap.end);
       const dur = Math.max(0.3, (Number.isFinite(end) ? end : start + 2) - start);
 
-      modifications[`${cap.role}.text`] = cap.text.trim();
-      modifications[`${cap.role}.time`] = start;
-      modifications[`${cap.role}.duration`] = Number(dur.toFixed(2));
+      modifications[`${slot}.text`] = cap.text.trim();
+      modifications[`${slot}.time`] = start;
+      modifications[`${slot}.duration`] = Number(dur.toFixed(2));
 
       // 色・フォントを styleId から自動決定する
       // styleId（色・装飾）とfontId（書体）は、AIがそれぞれ別の観点で選んでいる。
       // fontIdはネタとブランドの雰囲気から選ばれたもので、styleId由来の書体より優先される。
-      const styleResult = styleIdToModifications(cap.styleId, cap.role, CAPTION_STYLE_DEFS, cap.role, cap.fontId);
+      // styleIdToModifications は要素名を渡すと `{要素名}.xxx` の形で返すので、
+      // roleではなく実際の枠名（slot）を渡す
+      const styleResult = styleIdToModifications(cap.styleId, slot, CAPTION_STYLE_DEFS, cap.role, cap.fontId);
       for (const [key, value] of Object.entries(styleResult.modifications)) {
         if (key.endsWith("._strokeWidthRatio")) {
           // 比率のまま送るとCreatomateが理解できないため、
           // この要素の実際の文字サイズ(vmin)を掛けて絶対値に変換する
-          const fontSizeVmin = ELEMENT_FONT_SIZE_VMIN[cap.role] ?? 8;
+          const fontSizeVmin = ELEMENT_FONT_SIZE_VMIN[slot] ?? 8;
           const strokeVmin = (value * fontSizeVmin).toFixed(2);
-          modifications[`${cap.role}.stroke_width`] = `${strokeVmin} vmin`;
+          modifications[`${slot}.stroke_width`] = `${strokeVmin} vmin`;
         } else {
           modifications[key] = value;
         }
       }
       if (styleResult.degraded) {
-        degradedNotes.push({ role: cap.role, styleId: cap.styleId, reason: styleResult.reason });
+        degradedNotes.push({ slot, role: cap.role, styleId: cap.styleId, reason: styleResult.reason });
       }
 
       // アニメーションを適用する。
@@ -110,7 +131,7 @@ export default async function handler(req, res) {
       // 動きの無いテロップは素人っぽく見えるため、必ず何か入れる方針。
       const animDef = animationIdToDefinition(cap.animationId);
       if (animDef) {
-        modifications[`${cap.role}.animations`] = animDef;
+        modifications[`${slot}.animations`] = animDef;
       } else if (cap.animationId) {
         // AIが存在しないIDを返した場合。テンプレート側の既定アニメーションが
         // そのまま使われるので致命的ではないが、記録は残す
@@ -122,14 +143,14 @@ export default async function handler(req, res) {
       }
     }
 
-    // このテンプレートは hook/punch/info/cta の4枠が常に存在する。
+    // テンプレートには8枠が常に存在する。
     // 今回のcaptionsで使わなかった枠は、明示的に空文字で上書きしないと、
     // テンプレートに以前保存された文字（過去のテスト時に入力した「テスト」等）
     // がそのまま焼き込まれてしまう（2026-08-08 実機で確認：captionsが3個の
     // ときに、使われなかった4個目の枠の残留文字が動画に写り込んだ）。
-    for (const role of KNOWN_ROLES) {
-      if (!usedRoles.has(role)) {
-        modifications[`${role}.text`] = "";
+    for (const slot of ALL_SLOTS) {
+      if (!usedSlots.has(slot)) {
+        modifications[`${slot}.text`] = "";
       }
     }
 
@@ -156,6 +177,7 @@ export default async function handler(req, res) {
     const appliedAnims = Object.entries(modifications)
       .filter(([k]) => k.endsWith(".animations"))
       .map(([k, v]) => `${k.replace(".animations", "")}=${v?.[0]?.type || "?"}`);
+    console.log(`[creatomate-burn] 使用枠: ${[...usedSlots].join(", ") || "なし"}`);
     if (appliedAnims.length > 0) {
       console.log("[creatomate-burn] 適用したアニメーション:", appliedAnims.join(", "));
     }
