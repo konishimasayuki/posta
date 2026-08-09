@@ -773,6 +773,9 @@ export default function GeneratePage() {
         id: Date.now(),
         projectId: PROJECT.id,
         projectName: PROJECT.name,
+        // プロジェクトのサムネイル。履歴一覧や、探索ページに公開したときの
+        // 投稿者アイコンとして使う
+        projectThumb: PROJECT.thumbnail || null,
         projectColor: "#ea580c",
         projectIcon: "📁",
         type: (generateVideo && finalVideo) ? "both" : "sns",
