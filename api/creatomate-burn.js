@@ -56,6 +56,34 @@ const ELEMENT_FONT_SIZE_VMIN = {
 /** テンプレートに存在する全ての枠名 */
 const ALL_SLOTS = Object.values(ROLE_SLOTS).flat();
 
+// 同時に表示されるテロップが画面上で重ならないよう、枠ごとの定位置を持つ。
+// テンプレート側の位置設定は、複数のinfoが全く同じ位置にあるなど
+// 同時表示を想定していなかったため、こちらから毎回上書きする。
+//
+// y は画面上からの中心位置(%)、height は占有する高さ(%)。
+// 上から順に並べ、隣同士が重ならないよう間隔を空けてある。
+const SLOT_LAYOUT = {
+  hook:   { y: 13, height: 15 },
+  punch:  { y: 40, height: 14 },
+  punch2: { y: 56, height: 14 },
+  info:   { y: 71, height: 10 },
+  info2:  { y: 82, height: 10 },
+  // info3/info4 は info/info2 と同じ位置を使い回す。
+  // 補足を3つ以上「同時に」出すことは想定していないため
+  // （時間をずらして出す分には問題ない）。
+  info3:  { y: 71, height: 10 },
+  info4:  { y: 82, height: 10 },
+  cta:    { y: 93, height: 9 },
+};
+
+/**
+ * 2つのテロップが時間的に重なっているか判定する。
+ * 重なっていなければ、同じ位置に置いても問題ない。
+ */
+function isTimeOverlapping(a, b) {
+  return a.start < b.end && b.start < a.end;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
@@ -81,6 +109,7 @@ export default async function handler(req, res) {
     const slotCursor = {};       // role => 次に使う枠のインデックス
     const usedSlots = new Set(); // 実際に使った枠名（未使用枠を空にするため）
     const skipped = [];
+    const placed = [];           // 実際に配置したテロップ（位置決めに使う）
 
     const degradedNotes = []; // グラデーション簡略化・フォント未検証など、見た目が妥協された箇所の記録
 
@@ -107,6 +136,9 @@ export default async function handler(req, res) {
       modifications[`${slot}.text`] = cap.text.trim();
       modifications[`${slot}.time`] = start;
       modifications[`${slot}.duration`] = Number(dur.toFixed(2));
+
+      // 配置した内容を覚えておく（後で位置を決めるのに使う）
+      placed.push({ slot, role: cap.role, start, end: start + dur, text: cap.text.trim() });
 
       // 色・フォントを styleId から自動決定する
       // styleId（色・装飾）とfontId（書体）は、AIがそれぞれ別の観点で選んでいる。
@@ -144,6 +176,34 @@ export default async function handler(req, res) {
           reason: `アニメーション「${cap.animationId}」が対応表に無いため、テンプレート既定の動きを使用`,
         });
       }
+    }
+
+    // ── 位置の決定 ──────────────────────────────
+    // 同じ時間に表示されるテロップ同士が画面上で重ならないようにする。
+    //
+    // テンプレート側の位置は「同時表示」を想定しておらず、
+    // 特に info / info2 / info3 / info4 は全く同じ位置にある。
+    // そのままでは同時に出したときに文字が重なって読めなくなるため、
+    // ここで毎回、位置を明示的に指定し直す。
+    //
+    // ただし、時間が重ならないテロップまで無理に散らすと、
+    // 単独で出るときに画面の隅に寄って不自然になる。
+    // そこで「同時に出るものだけ」定位置へ振り分ける方針にしている。
+    for (const item of placed) {
+      // このテロップと時間が重なる他のテロップがあるか
+      const hasOverlap = placed.some(other =>
+        other.slot !== item.slot && isTimeOverlapping(item, other)
+      );
+
+      if (hasOverlap) {
+        // 重なるものがあるので、枠ごとの定位置へ振り分ける
+        const layout = SLOT_LAYOUT[item.slot];
+        if (layout) {
+          modifications[`${item.slot}.y`] = `${layout.y}%`;
+          modifications[`${item.slot}.height`] = `${layout.height}%`;
+        }
+      }
+      // 重なるものが無ければ、テンプレート側の位置をそのまま使う
     }
 
     // テンプレートには8枠が常に存在する。
