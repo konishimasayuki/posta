@@ -498,15 +498,59 @@ function sanitize(captions, duration, brandFontId = null) {
     })
     .sort((a, b) => a.start - b.start);
 
-  // 前後が重なっていたらずらす（同時に2つ出ると読めない）
-  const result = [];
-  let prevEnd = 0;
+  // テロップの時間的な重なりは許容する。
+  // 画面上の位置は creatomate-burn.js 側で自動的に振り分けられるため、
+  // 「月々19,800円〜」を大きく出しながら下に商品名を出す、といった
+  // 一般的な演出ができるようにしている。
+  //
+  // ただし3つ以上が同時に出ると画面がうるさくなって読めないので、
+  // そこだけは機械的に防ぐ。
+  const MAX_CONCURRENT = 2;
 
+  const result = [];
   for (const c of cleaned) {
-    const start = Math.max(c.start, prevEnd);
+    let start = Math.max(0, c.start);
     if (start >= duration) break;                    // もう入らない
-    const end = Math.min(duration, Math.max(start + MIN_SHOW, c.end));
+    let end = Math.min(duration, Math.max(start + MIN_SHOW, c.end));
     if (end - start < 0.4) continue;                 // 短すぎるものは捨てる
+
+    // この時間帯に既に何個表示されているか数える。
+    // 境界がぴったり同じ場合は重なっていないものとして扱う。
+    const OVERLAP_EPS = 0.001;
+    const concurrent = result.filter(r => start < r.end - OVERLAP_EPS && r.start < end - OVERLAP_EPS);
+
+    if (concurrent.length >= MAX_CONCURRENT) {
+      // 3つ以上が同時に出ると画面がうるさくて読めないので、後ろにずらす。
+      //
+      // ずらす先の候補は「既に配置したテロップの終了時刻」だが、
+      // 一番早い終了時刻に置くだけでは、他のテロップとまだ重なることがある
+      // （例：A=1〜3, B=1.2〜3.2 のとき、3.0に置くとBと0.2秒重なる）。
+      // そのため候補を早い順に全て試して、本当に2つ以下になる時刻を探す。
+      const desiredLength = end - start;
+      let shifted = false;
+
+      const candidates = [...new Set(result.map(r => r.end))]
+        .filter(t => t > start)
+        .sort((a, b) => a - b);
+
+      for (const t of candidates) {
+        const newStart = t;
+        const newEnd = Math.min(duration, Math.max(newStart + MIN_SHOW, newStart + desiredLength));
+        if (newStart >= duration || newEnd - newStart < 0.4) continue;
+
+        const stillConcurrent = result.filter(r =>
+          newStart < r.end - OVERLAP_EPS && r.start < newEnd - OVERLAP_EPS
+        );
+        if (stillConcurrent.length < MAX_CONCURRENT) {
+          start = newStart;
+          end = newEnd;
+          shifted = true;
+          break;
+        }
+      }
+      // どこにもずらせなければ、このテロップは諦める
+      if (!shifted) continue;
+    }
 
     result.push({
       ...c,
@@ -514,10 +558,10 @@ function sanitize(captions, duration, brandFontId = null) {
       start: Number(start.toFixed(2)),
       end: Number(end.toFixed(2)),
     });
-    prevEnd = end;
   }
 
-  return result;
+  // 表示順に並べ直す（ずらした結果、順序が入れ替わることがあるため）
+  return result.sort((a, b) => a.start - b.start);
 }
 
 export default async function handler(req, res) {
@@ -649,7 +693,9 @@ ${userWords.map((w, i) => (i + 1) + ". " + w).join(String.fromCharCode(10))}
 
 【タイミング】
 - 動画は${seconds}秒。start/end は 0 〜 ${seconds} の範囲の秒数
-- テロップ同士は重ねない（前のendの後に次のstartが来る）
+- テロップ同士は時間的に重なってもよい（画面上の位置は自動で振り分けられる）
+  例：「月々19,800円〜」を大きく出しながら、下に「ホンダ フィット」を同時に出す
+  ただし同時に出すのは2つまで。3つ以上を同時に出すと画面がうるさくなる
 - 各テロップは最低1秒は表示する
 - 指定された言葉の数（${userWords.length}個）ぶんだけ出力する
 
@@ -690,7 +736,9 @@ ${neta || "ブランド設定に沿った内容"}
 
 【タイミング】
 - 動画は${seconds}秒。start/end は 0 〜 ${seconds} の範囲の秒数
-- テロップ同士は重ねない（前のendの後に次のstartが来る）
+- テロップ同士は時間的に重なってもよい（画面上の位置は自動で振り分けられる）
+  例：「月々19,800円〜」を大きく出しながら、下に「ホンダ フィット」を同時に出す
+  ただし同時に出すのは2つまで。3つ以上を同時に出すと画面がうるさくなる
 - 各テロップは最低1秒は表示する
 - 個数の目安（あくまで目安。ユーザーの指定がある場合はそちらが優先）
     5秒  → 3〜4個
